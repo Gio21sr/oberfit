@@ -1,0 +1,136 @@
+/* src/app/globals.css */
+
+/* Restablecimiento básico y estilos generales que no son manejados por Bootstrap */
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    Fira Sans,
+    Droid Sans,
+    Helvetica Neue,
+    sans-serif;
+  background-color: #f0f2f5; /* Color de fondo general de la aplicación */
+  color: #333; /* Color de texto general */
+  line-height: 1.6;
+  /* Padding superior para dejar espacio al header fijo */
+  padding-top: 75px; /* Altura aproximada del header */
+}
+
+/* box-sizing para una mejor gestión del layout */
+* {
+  box-sizing: border-box;
+}
+
+/* Estilos para enlaces si no son manejados por Bootstrap directamente en el componente */
+a {
+  color: inherit; /* Hereda el color del texto de su padre */
+  text-decoration: none; /* Sin subrayado por defecto para enlaces genéricos */
+}
+
+/* ========================================================= */
+/* Estilos Específicos/Personalizados (NO Bootstrap) */
+/* ========================================================= */
+
+/* Estilos para el efecto hover en las tarjetas (Aplicado en Card.tsx) */
+.transform-on-hover {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.transform-on-hover:hover {
+  transform: translateY(-5px); /* Efecto de "levantar" al pasar el ratón */
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Estilos para mensajes de error (Aplicado en LoginForm.tsx) */
+.error-message {
+  color: #dc3545; /* Rojo de Bootstrap (danger) */
+  font-weight: bold;
+  margin-top: -10px; 
+  margin-bottom: 15px;
+  font-size: 0.95em;
+  text-align: center;
+}
+
+/* Estilos para las páginas de rol (dentro del main de cada layout de rol) */
+.role-page-content {
+  width: 100%;
+  max-width: 900px;
+  background-color: #fefefe;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin: 0 auto; /* Centrar el contenido de la página de rol */
+}
+
+.main-title {
+  font-size: 3.5em;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.sub-title {
+  font-size: 1.8em;
+  color: #555;
+  margin-bottom: 25px;
+}
+
+.description-text {
+  font-size: 1.1em;
+  line-height: 1.5;
+  color: #666;
+}
+
+/* ========================================================= */
+/* Estilos de la Sidebar (Offcanvas) y Menú de Roles (Global) */
+/* ========================================================= */
+
+/* Estilos generales para el título dentro del Offcanvas */
+.offcanvas-title {
+  font-size: 1.8em;
+  font-weight: bold;
+  color: white !important;
+  text-align: center;
+  width: 100%;
+  padding: 15px 0;
+  margin-bottom: 20px;
+}
+/* Clases para los fondos de los títulos de Offcanvas */
+.sidebar-title.admin-bg { background-color: #534b62; }
+.sidebar-title.empleado-bg { background-color: #4a6c6f; }
+.sidebar-title.socio-bg { background-color: #6a4c93; }
+.sidebar-title.visitante-bg { background-color: #555; }
+
+/* Estilos para los enlaces de navegación dentro del Offcanvas */
+.sidebar-link {
+  color: white !important;
+  text-decoration: none;
+  font-size: 1.1em;
+  padding: 12px 20px !important;
+  transition: background-color 0.2s ease-in-out;
+  width: 100%;
+}
+
+.sidebar-link:hover {
+  background-color: #555 !important;
+}
+
+.sidebar-link.logout-link {
+  background-color: #d9534f !important;
+  text-align: center;
+  border-radius: 0;
+}
+
+.sidebar-link.logout-link:hover {
+  background-color: #c9302c !important;
+}
+
+/* No necesitamos media queries específicas para el Offcanvas aquí,
+   ya que su comportamiento 'desplegable' es por defecto y constante. */
