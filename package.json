@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cp prisma/schema.prisma ./ && next build",
+    "build": ""build":next build && cp ./src/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node ./.next/server/,
     "start": "next start",
     "lint": "next lint",
     "postinstall": "npx prisma generate"
