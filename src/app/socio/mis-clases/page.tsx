@@ -1,123 +1,92 @@
-// src/app/socio/mis-clases/page.tsx
+// src/app/socio/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, Spinner, Alert } from 'react-bootstrap';
-import { getSocioInscriptions } from '@/app/actions';
-import { formatDbDateTimeToLocal } from '@/utils/formatDate';
-import { useSession } from 'next-auth/react'; // <-- Importa useSession
-import { useSidebar } from '@/lib/SidebarContext'; // Importa useSidebar
+import { Spinner, Alert, Card as BsCard } from 'react-bootstrap';
+import { getUserById } from '@/app/actions';
+import { useSidebar } from '@/lib/SidebarContext';
+import { useSession } from 'next-auth/react';
 
-// Define interfaces para los datos que esperamos
-interface ClaseDetalles {
-  id_clase: number;
-  nombre_clase: string;
-  descripcion: string;
-  fecha_hora: Date;
-  cupo: number;
-  capacidad_maxima: number;
+// Define la interfaz para los datos del usuario (socio)
+interface SocioData {
+  id_usuario: number; 
+  nom_usuario: string | null; // <-- ¡CAMBIO CLAVE AQUÍ! 'nom_usuario' puede ser null
+  clases_restantes: number | null;
 }
 
-interface Inscripcion {
-  id_inscripcion: number;
-  fecha_registro: Date; 
-  metodo_pago: 'caja' | 'transferencia' | 'socio' | null; // Puede ser null
-  clase: ClaseDetalles;
-}
-
-export default function SocioMisClasesPage() {
-  const [inscriptions, setInscriptions] = useState<Inscripcion[]>([]);
+export default function SocioHomePage() {
+  const [socioData, setSocioData] = useState<SocioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [socioId, setSocioId] = useState<number | null>(null);
 
-  const { setCurrentRoleMenu } = useSidebar();
-  const { data: session, status } = useSession(); // <-- Usa useSession
-
-  // Función asíncrona para obtener las inscripciones del socio
-  const fetchInscriptions = async (userId: number) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const fetchedInscriptions = await getSocioInscriptions(userId);
-      const processedInscriptions = fetchedInscriptions.map((insc: any) => ({
-        ...insc,
-        fecha_registro: new Date(insc.fecha_registro),
-        clase: {
-          ...insc.clase,
-          fecha_hora: new Date(insc.clase.fecha_hora),
-        },
-      }));
-      setInscriptions(processedInscriptions);
-    } catch (err: any) {
-      console.error("Error al cargar inscripciones:", err);
-      setError(err.message || "No se pudieron cargar tus clases inscritas.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { setCurrentRoleMenu, currentUserName, setCurrentUserName } = useSidebar();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
-    // Asegura que el menú de la sidebar muestre el rol "socio"
     setCurrentRoleMenu('socio'); 
 
-    // Obtener el ID del socio de la sesión de NextAuth.js
-    if (status === 'authenticated' && session?.user?.id) {
-      const userId = parseInt(session.user.id as string);
-      setSocioId(userId);
-      fetchInscriptions(userId); // Cargar inscripciones una vez que el ID esté disponible
-    } else if (status === 'unauthenticated') {
-      setError("Debe iniciar sesión como socio para ver sus clases inscritas.");
-      setLoading(false);
-    } else if (status === 'loading') {
-      setLoading(true); // Mostrar carga mientras la sesión se autentica
+    async function fetchSocioData() {
+      if (status === 'loading') {
+        setLoading(true);
+        return;
+      }
+      if (!session?.user?.id) { 
+        setError("No se pudo obtener el ID del socio desde la sesión. Por favor, inicie sesión.");
+        setLoading(false);
+        setCurrentUserName(null); 
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const userId = parseInt(session.user.id as string); 
+
+        const data = await getUserById(userId); 
+        setSocioData(data);
+        setCurrentUserName(data.nom_usuario); 
+      } catch (err: any) {
+        console.error("Error al cargar datos del socio:", err);
+        setError(err.message || "No se pudieron cargar tus datos de socio.");
+        setCurrentUserName(null); 
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [session, status, setCurrentRoleMenu]); // Dependencias
+
+    fetchSocioData();
+  }, [session, status, setCurrentRoleMenu, setCurrentUserName]);
+
 
   return (
     <div className="role-page-content">
-      <h1 className="main-title">Mis Clases Inscritas</h1>
-      <p className="sub-title">Aquí puedes ver todas las clases a las que te has inscrito.</p>
+      <h1 className="main-title">Oberfit</h1>
+      {/* Muestra el nombre del socio si está disponible. Usa 'Socio' como fallback si es null. */}
+      <h2 className="sub-title">Bienvenido, {currentUserName || 'Socio'}</h2> 
+      <p className="description-text">Este es tu área personal. Aquí podrás ver tus clases restantes y gestionar tus inscripciones.</p>
 
       {loading || status === 'loading' ? (
         <div className="d-flex justify-content-center my-4">
           <Spinner animation="border" role="status">
-            <span className="visually-hidden">Cargando clases inscritas...</span>
+            <span className="visually-hidden">Cargando datos...</span>
           </Spinner>
         </div>
       ) : error || status === 'unauthenticated' ? (
         <Alert variant="danger" className="my-4">
           {error || "Acceso denegado. Por favor, inicie sesión como socio."}
         </Alert>
-      ) : inscriptions.length === 0 ? (
+      ) : !socioData ? (
         <Alert variant="info" className="my-4">
-          Aún no te has inscrito en ninguna clase. ¡Explora las clases disponibles!
+          No se encontraron datos de socio. Asegúrate de iniciar sesión como socio.
         </Alert>
-      ) : (
-        <Table striped bordered hover responsive className="my-4">
-          <thead>
-            <tr>
-              <th>ID Inscripción</th>
-              <th>Clase</th>
-              <th>Fecha Clase</th>
-              <th>Hora Clase</th>
-              <th>Fecha de Registro</th>
-              <th>Método Pago</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inscriptions.map((inscripcion) => (
-              <tr key={inscripcion.id_inscripcion}>
-                <td>{inscripcion.id_inscripcion}</td>
-                <td>{inscripcion.clase.nombre_clase}</td>
-                <td>{formatDbDateTimeToLocal(inscripcion.clase.fecha_hora).split(' ')[0]}</td>
-                <td>{formatDbDateTimeToLocal(inscripcion.clase.fecha_hora).split(' ')[1]}</td>
-                <td>{formatDbDateTimeToLocal(inscripcion.fecha_registro)}</td>
-                <td>{inscripcion.metodo_pago || 'N/A'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+      ) : ( 
+        <BsCard className="p-3 shadow-sm text-center my-4" style={{ maxWidth: '300px' }}>
+          <BsCard.Body>
+            <BsCard.Title className="fs-4 text-primary">Clases Restantes</BsCard.Title>
+            <p className="display-4 fw-bold">{socioData.clases_restantes !== null ? socioData.clases_restantes : 'N/A'}</p>
+            <BsCard.Text className="text-muted">Tienes oportunidades para inscribirte este mes.</BsCard.Text>
+          </BsCard.Body>
+        </BsCard>
       )}
     </div>
   );
