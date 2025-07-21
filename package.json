@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build":"echo '--- Verificando contenido de schema.prisma ---' && cat prisma/schema.prisma && echo '--- Fin de la verificación ---' && prisma generate && next build && mkdir -p ./.next/standalone/src/generated/prisma && cp ./node_modules/.prisma/client/libquery_engine-*.so.node ./.next/standalone/src/generated/prisma/",
+    "build":"echo '--- REPORTE DEL SISTEMA ---' && openssl version && echo '' && cat /etc/os-release && echo '--- FIN REPORTE ---' && echo '--- GENERANDO PRISMA ---' && prisma generate --log-level=info && echo '--- CONTENIDO DE NODE_MODULES/.PRISMA/CLIENT ---' && ls -la node_modules/.prisma/client/ && echo '--- FIN CONTENIDO ---' && next build && mkdir -p ./.next/standalone/src/generated/prisma && cp ./node_modules/.prisma/client/libquery_engine-*.so.node ./.next/standalone/src/generated/prisma/",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "npx prisma generate"
