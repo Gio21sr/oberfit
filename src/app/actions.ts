@@ -4,6 +4,10 @@
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth'; // Asegúrate de que este archivo exista
+
+// --- TUS FUNCIONES DE AYUDA Y TIPOS (SIN CAMBIOS) ---
 
 interface ErrorWithMessage extends Error {
   message: string;
@@ -20,8 +24,6 @@ interface ErrorWithRedirect extends Error {
   message: 'NEXT_REDIRECT';
 }
 
-
-// ✅ INICIO DE LA SOLUCIÓN: Agrega estas funciones
 function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
   return (
     typeof error === 'object' &&
@@ -67,15 +69,11 @@ interface VisitorInscriptionData {
 
 interface UserData {
   id_usuario: number;
-  nom_usuario: string | null; // Puede ser null
+  nom_usuario: string | null;
   clases_restantes: number | null;
 }
 
-/**
- * Registra un nuevo usuario (socio) en la base de datos `usuarios` (modelo `User`).
- * Esta función es llamada desde el formulario de Login/Registro para socios.
- * @param formData Objeto FormData con 'username', 'email', 'password', 'confirmPassword'.
- */
+// 💡 PUBLIC: Un usuario nuevo no tiene sesión, por lo que esta acción debe ser pública.
 export async function registerUser(formData: FormData) {
   const username = formData.get('username') as string;
   const email = formData.get('email') as string;
@@ -128,7 +126,7 @@ export async function registerUser(formData: FormData) {
       throw error;
     }
     if (isErrorWithCode(error) && error.code === 'P2002') {
-        const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido'; // <-- Corregido para target
+        const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
         throw new Error(`Ya existe un usuario con este ${target}.`);
     }
     console.error('Error al registrar socio:', error);
@@ -136,13 +134,13 @@ export async function registerUser(formData: FormData) {
   }
 }
 
-/**
- * Registra una nueva clase en la base de datos `clases`.
- * @param formData Objeto FormData con 'name', 'description', 'dateTime', 'capacity'.
- * @returns El objeto de la clase creada.
- * @throws Error si los datos son inválidos o hay un problema en la DB.
- */
+// ✅ SECURE: Solo los administradores pueden registrar nuevas clases.
 export async function registerClass(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
+    throw new Error('Acceso denegado: Solo los administradores pueden crear clases.');
+  }
+
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
   const dateTimeString = formData.get('dateTime') as string;
@@ -182,11 +180,7 @@ export async function registerClass(formData: FormData) {
   }
 }
 
-/**
- * Obtiene todas las clases de la base de datos.
- * @returns Un array de objetos de clase.
- * @throws Error si hay un problema al obtener las clases.
- */
+// 💡 PUBLIC: Cualquiera puede ver la lista de clases disponibles.
 export async function getClasses() {
   try {
     const classes = await prisma.clase.findMany({
@@ -205,13 +199,13 @@ export async function getClasses() {
   }
 }
 
-/**
- * Actualiza los detalles de una clase existente en la base de datos.
- * @param formData Objeto FormData con id_clase, name, description, dateTime, capacity, capacidadMaxima.
- * @returns El objeto de la clase actualizada.
- * @throws Error si los datos son inválidos o hay un problema en la DB.
- */
+// ✅ SECURE: Solo los administradores pueden actualizar clases.
 export async function updateClass(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
+    throw new Error('Acceso denegado: Solo los administradores pueden actualizar clases.');
+  }
+
   const id_clase = parseInt(formData.get('id_clase') as string);
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
@@ -258,13 +252,13 @@ export async function updateClass(formData: FormData) {
   }
 }
 
-/**
- * Elimina una clase de la base de datos.
- * @param formData Objeto FormData que contiene 'id_clase'.
- * @returns El objeto de la clase eliminada.
- * @throws Error si hay un problema al eliminar la clase.
- */
+// ✅ SECURE: Solo los administradores pueden eliminar clases.
 export async function deleteClass(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
+    throw new Error('Acceso denegado: Solo los administradores pueden eliminar clases.');
+  }
+
   const id_clase = parseInt(formData.get('id_clase') as string);
 
   if (isNaN(id_clase)) {
@@ -289,13 +283,13 @@ export async function deleteClass(formData: FormData) {
   }
 }
 
-/**
- * Registra un nuevo usuario (Empleado o Socio) en la tabla 'usuarios' (modelo 'User').
- * Esta función es llamada por el Administrador.
- * @param formData Objeto FormData con 'username', 'email', 'password', 'confirmPassword', 'role'.
- * @returns Un objeto con éxito o lanza un Error.
- */
+// ✅ SECURE: Solo los administradores pueden registrar otros usuarios.
 export async function registerUserByAdmin(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
+    throw new Error('Acceso denegado: Acción solo para administradores.');
+  }
+
   const username = formData.get('username') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -355,19 +349,20 @@ export async function registerUserByAdmin(formData: FormData) {
   }
 }
 
-/**
- * Obtiene usuarios de la base de datos por su rol (Empleados o Socios) desde la tabla 'usuarios'.
- * @returns Un objeto que contiene arrays de empleados y socios.
- * @throws Error si hay un problema al obtener los usuarios.
- */
+// ✅ SECURE: Solo los administradores pueden ver la lista completa de usuarios.
 export async function getUsersByRole() {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
+    throw new Error('Acceso denegado: Acción solo para administradores.');
+  }
+
   try {
     const empleados = await prisma.user.findMany({
       where: { role: 'empleado' },
       orderBy: {
         id: 'asc',
       },
-      select: { // Seleccionar solo los campos necesarios para la lista de usuarios
+      select: {
         id: true,
         name: true,
         email: true,
@@ -379,7 +374,7 @@ export async function getUsersByRole() {
       orderBy: {
         id: 'asc',
       },
-      select: { // Seleccionar solo los campos necesarios
+      select: {
         id: true,
         name: true,
         email: true,
@@ -400,13 +395,13 @@ export async function getUsersByRole() {
   }
 }
 
-/**
- * Elimina un usuario (Empleado o Socio) de la base de datos `usuarios`.
- * @param formData Objeto FormData que contiene 'userId' y 'roleToDelete'.
- * @returns El objeto del usuario eliminado.
- * @throws Error si el usuario no existe, o si hay un problema al eliminar.
- */
+// ✅ SECURE: Solo los administradores pueden eliminar usuarios.
 export async function deleteUserByAdmin(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
+    throw new Error('Acceso denegado: Acción solo para administradores.');
+  }
+
   const userId = parseInt(formData.get('userId') as string);
   const roleToDelete = formData.get('roleToDelete') as string;
 
@@ -435,17 +430,17 @@ export async function deleteUserByAdmin(formData: FormData) {
   }
 }
 
-/**
- * Inscribe a un socio en una clase.
- * @param formData Objeto FormData con 'claseId', 'userId'.
- * @returns El objeto de la inscripción creada.
- * @throws Error si el cupo es insuficiente, el socio no tiene clases restantes, o ya está inscrito.
- */
+// ✅ SECURE: Un socio debe estar logueado para inscribirse. El ID se toma de la sesión.
 export async function enrollInClass(formData: FormData) {
-  const claseId = parseInt(formData.get('claseId') as string);
-  const userId = parseInt(formData.get('userId') as string);
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || session.user.role !== 'socio') {
+    throw new Error('Acceso denegado: Debes ser un socio conectado para inscribirte.');
+  }
 
-  if (isNaN(claseId) || isNaN(userId)) {
+  const claseId = parseInt(formData.get('claseId') as string);
+  const userId = parseInt(session.user.id); // <-- MÁS SEGURO: ID desde la sesión
+
+  if (isNaN(claseId)) {
     throw new Error("Datos de inscripción incompletos o inválidos.");
   }
 
@@ -519,7 +514,7 @@ export async function enrollInClass(formData: FormData) {
     console.log('Inscripción creada con éxito:', result);
     return { success: true, inscription: result };
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'message' in error && error.message === 'NEXT_REDIRECT') {
+    if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error en inscripción:', error);
@@ -527,14 +522,14 @@ export async function enrollInClass(formData: FormData) {
   }
 }
 
-/**
- * Obtiene los datos de un usuario por su ID desde la tabla `usuarios` (modelo `User`).
- * Se usa para obtener el nombre de usuario y el contador de clases restantes para la interfaz del Socio.
- * @param userId El ID del usuario en la tabla `usuarios`.
- * @returns Un objeto con los datos del usuario (id, name, clases_restantes) o lanza un error.
- * @throws Error si el usuario no se encuentra o hay un problema en la DB.
- */
-export async function getUserById(userId: number): Promise<UserData> {
+// ✅ SECURE: Un usuario logueado solo puede ver sus propios datos.
+export async function getUserById() {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    throw new Error('Acceso denegado: Debes estar conectado.');
+  }
+  const userId = parseInt(session.user.id);
+
   if (isNaN(userId)) {
     throw new Error("ID de usuario inválido.");
   }
@@ -551,7 +546,7 @@ export async function getUserById(userId: number): Promise<UserData> {
       clases_restantes: user.clases_restantes,
     };
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'message' in error && error.message === 'NEXT_REDIRECT') {
+    if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error al obtener usuario por ID:', error);
@@ -559,13 +554,14 @@ export async function getUserById(userId: number): Promise<UserData> {
   }
 }
 
-/**
- * Obtiene las inscripciones de un socio específico, incluyendo detalles de la clase.
- * @param userId El ID del usuario (socio) para el que se buscan las inscripciones.
- * @returns Un array de objetos de inscripción con detalles de la clase.
- * @throws Error si hay un problema al obtener las inscripciones.
- */
-export async function getSocioInscriptions(userId: number) {
+// ✅ SECURE: Un socio logueado solo puede ver sus propias inscripciones.
+export async function getSocioInscriptions() {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    throw new Error('Acceso denegado: Debes estar conectado para ver tus inscripciones.');
+  }
+  const userId = parseInt(session.user.id);
+
   if (isNaN(userId)) {
     throw new Error("ID de usuario inválido para obtener inscripciones.");
   }
@@ -587,7 +583,7 @@ export async function getSocioInscriptions(userId: number) {
     console.log(`Inscripciones obtenidas para el socio ID ${userId}:`, inscriptions);
     return inscriptions;
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'message' in error && error.message === 'NEXT_REDIRECT') {
+    if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error al obtener inscripciones del socio:', error);
@@ -595,12 +591,7 @@ export async function getSocioInscriptions(userId: number) {
   }
 }
 
-/**
- * Registra una nueva inscripción de visitante en la base de datos.
- * @param formData Objeto FormData con 'nombre', 'correo', 'claseId', 'metodoPago'.
- * @returns Un objeto con 'success: true' y los detalles de la inscripción para mostrar en la UI.
- * @throws Error si los datos son inválidos, el cupo es insuficiente, o hay un problema en la DB.
- */
+// 💡 PUBLIC: Un visitante no tiene sesión, esta acción debe ser pública.
 export async function registerVisitorInscription(formData: FormData): Promise<{ success: boolean; inscriptionDetails: VisitorInscriptionData }> {
   const nombre = formData.get('nombre') as string;
   const correo = formData.get('correo') as string;
@@ -641,7 +632,7 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
         data: { cupo: { decrement: 1 } },
       });
 
-      return { newInscription, clase }; 
+      return { newInscription, clase };
     });
 
     const newVisitorInscriptionData = transactionResult.newInscription;
@@ -649,8 +640,8 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
 
     console.log('Inscripción de visitante creada con éxito en DB:', newVisitorInscriptionData.id_visitante);
 
-    return { 
-        success: true, 
+    return {
+        success: true,
         inscriptionDetails: {
             id: newVisitorInscriptionData.id_visitante,
             nombre: newVisitorInscriptionData.nombre,
@@ -668,7 +659,7 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
         }
     };
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'message' in error && error.message === 'NEXT_REDIRECT') {
+    if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error al registrar inscripción de visitante:', error);
@@ -676,13 +667,13 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
   }
 }
 
-/**
- * Obtiene el listado de asistentes (socios e inscritos visitantes) para una clase específica.
- * @param classId El ID de la clase para la que se buscan los asistentes.
- * @returns Un array de objetos que representan los asistentes, con su tipo (socio/visitante) y datos relevantes.
- * @throws Error si hay un problema al obtener los asistentes.
- */
+// ✅ SECURE: Solo admins o empleados pueden ver la lista de asistentes.
 export async function getAttendeesByClass(classId: number) {
+  const session = await getServerSession(authOptions);
+  if (!session || !['admin', 'empleado'].includes(session.user?.role ?? '')) {
+    throw new Error('Acceso denegado: No tienes permiso para ver esta información.');
+  }
+
   if (isNaN(classId)) {
     throw new Error("ID de clase inválido para obtener asistentes.");
   }
@@ -690,7 +681,6 @@ export async function getAttendeesByClass(classId: number) {
   try {
     const allAttendees: Array<{ type: string; id: number; name: string | null; email?: string | null; }> = [];
 
-    // 1. Obtener inscripciones de socios para esta clase
     const socioInscriptions = await prisma.inscripcion.findMany({
       where: { id_clase: classId },
       include: {
@@ -711,10 +701,9 @@ export async function getAttendeesByClass(classId: number) {
       }
     });
 
-    // 2. Obtener inscripciones de visitantes para esta clase
     const visitanteInscriptions = await prisma.inscripcionVisitante.findMany({
         where: { id_clase: classId },
-        select: { id_visitante: true, nombre: true, correo: true, metodo_pago: true }, 
+        select: { id_visitante: true, nombre: true, correo: true, metodo_pago: true },
     });
 
     visitanteInscriptions.forEach(inv => {
@@ -731,7 +720,7 @@ export async function getAttendeesByClass(classId: number) {
     console.log(`Asistentes para clase ID ${classId}:`, allAttendees);
     return allAttendees;
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'message' in error && error.message === 'NEXT_REDIRECT') {
+    if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error al obtener asistentes por clase:', error);
