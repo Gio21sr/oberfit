@@ -1,5 +1,5 @@
 
-import { PrismaClient } from '../generated/prisma'; // <-- Ruta relativa desde src/lib/ a src/generated/prisma
+import { PrismaClient } from '@prisma/client'; // <-- Ruta relativa desde src/lib/ a src/generated/prisma
 
 // Declaración global para evitar que Next.js cree múltiples instancias en desarrollo
 // durante el "Hot Module Reloading" (HMR), lo que podría
