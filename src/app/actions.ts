@@ -4,6 +4,7 @@
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 interface ErrorWithMessage extends Error {
   message: string;
@@ -450,7 +451,7 @@ export async function enrollInClass(formData: FormData) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx: PrismaClient) => {
       const clase = await tx.clase.findUnique({
         where: { id_clase: claseId },
       });
@@ -614,7 +615,7 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
   const metodoPagoBoolean = metodoPagoString === 'caja';
 
   try {
-    const transactionResult = await prisma.$transaction(async (tx: typeof prisma) => {
+    const transactionResult = await prisma.$transaction(async (tx: PrismaClient) => {
       const clase = await tx.clase.findUnique({
         where: { id_clase: claseId },
       });
