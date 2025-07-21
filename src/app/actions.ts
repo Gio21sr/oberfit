@@ -450,7 +450,7 @@ export async function enrollInClass(formData: FormData) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: typeof prisma) => {
       const clase = await tx.clase.findUnique({
         where: { id_clase: claseId },
       });
@@ -614,7 +614,7 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
   const metodoPagoBoolean = metodoPagoString === 'caja';
 
   try {
-    const transactionResult = await prisma.$transaction(async (tx) => {
+    const transactionResult = await prisma.$transaction(async (tx: typeof prisma) => {
       const clase = await tx.clase.findUnique({
         where: { id_clase: claseId },
       });
@@ -700,7 +700,7 @@ export async function getAttendeesByClass(classId: number) {
       },
     });
 
-    socioInscriptions.forEach(inv => {
+    socioInscriptions.forEach((inv:{ usuario: { id: number; name: string | null; email: string | null; } | null; }) => {
       if (inv.usuario) {
         allAttendees.push({
           type: 'socio',
@@ -717,7 +717,7 @@ export async function getAttendeesByClass(classId: number) {
         select: { id_visitante: true, nombre: true, correo: true, metodo_pago: true }, 
     });
 
-    visitanteInscriptions.forEach(inv => {
+    visitanteInscriptions.forEach((inv:{ id_visitante: number; nombre: string; correo: string; metodo_pago: boolean; }) => {
         allAttendees.push({
             type: 'visitante',
             id: inv.id_visitante,
