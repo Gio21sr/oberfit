@@ -121,7 +121,7 @@ export default function AdminUserManagementPage() {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                  ))} 
                 </tbody>
               </Table>
             )}

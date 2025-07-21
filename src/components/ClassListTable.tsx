@@ -45,7 +45,7 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
       const fetchedClasses = await getClasses(); // Llama a la Server Action para obtener las clases
 
       // Procesa las clases obtenidas: asegura que fecha_hora sea un objeto Date
-      const processedClasses = fetchedClasses.map(clase => ({
+      const processedClasses = fetchedClasses.map((clase:Clase) => ({
         ...clase,
         fecha_hora: new Date(clase.fecha_hora), // Convierte la cadena de fecha a un objeto Date
       }));
