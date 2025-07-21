@@ -1,10 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true, // Esto ayuda a que la compilación pase a pesar de los warnings/errores de ESLint
+    ignoreDuringBuilds: true,
   },
-  // --- AÑADE ESTA LÍNEA CLAVE PARA OPTIMIZAR EL DESPLIEGUE EN SERVERLESS ---
-  output: 'standalone', 
+  output: 'standalone',
+  // Añade esta configuración para Prisma
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push('@prisma/client');
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;
