@@ -451,7 +451,7 @@ export async function enrollInClass(formData: FormData) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx: PrismaClient) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const clase = await tx.clase.findUnique({
         where: { id_clase: claseId },
       });
@@ -615,7 +615,7 @@ export async function registerVisitorInscription(formData: FormData): Promise<{ 
   const metodoPagoBoolean = metodoPagoString === 'caja';
 
   try {
-    const transactionResult = await prisma.$transaction(async (tx: PrismaClient) => {
+    const transactionResult = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const clase = await tx.clase.findUnique({
         where: { id_clase: claseId },
       });
