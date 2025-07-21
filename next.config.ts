@@ -1,23 +1,10 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true, // Esto ayuda a que la compilación pase a pesar de los warnings/errores de ESLint
   },
-  output: 'standalone',
-  webpack: (config: any, { isServer }: { isServer: boolean }) => {
-    config.externals = [...config.externals, { '@prisma/client': '@prisma/client' }];
-    if (isServer) {
-      config.resolve = {
-        ...config.resolve,
-        alias: {
-          ...config.resolve.alias,
-          '.prisma/client': '@prisma/client'
-        },
-      };
-    }
-    return config;
-  },
+  // --- AÑADE ESTA LÍNEA CLAVE PARA OPTIMIZAR EL DESPLIEGUE EN SERVERLESS ---
+  output: 'standalone', 
 };
 
-export default nextConfig;
+module.exports = nextConfig;
