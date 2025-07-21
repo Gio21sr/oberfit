@@ -44,11 +44,11 @@ export default function VisitanteInscriptionPage() {
         setLoadingClasses(true);
         setErrorClasses(null);
         const fetchedClasses = await getClasses();
-        const processedClasses = fetchedClasses.map(clase => ({
+        const processedClasses = fetchedClasses.map((clase: ClaseSelect) => ({
           ...clase,
           fecha_hora: new Date(clase.fecha_hora),
         }));
-        setClasses(processedClasses.filter(clase => clase.cupo > 0));
+        setClasses(processedClasses.filter((clase: ClaseSelect)=> clase.cupo > 0));
       } catch (err: any) {
         console.error("Error al cargar clases para inscripción de visitante:", err);
         setErrorClasses(err.message || "No se pudieron cargar las clases para inscripción.");

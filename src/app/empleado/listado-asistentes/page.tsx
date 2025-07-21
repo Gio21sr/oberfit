@@ -33,7 +33,7 @@ export default function EmpleadoAttendeesListPage() {
         setLoadingClasses(true);
         setErrorClasses(null);
         const fetchedClasses = await getClasses();
-        const processedClasses = fetchedClasses.map(clase => ({
+        const processedClasses = fetchedClasses.map((clase: ClaseSelect )  => ({
           id_clase: clase.id_clase,
           nombre_clase: clase.nombre_clase,
           fecha_hora: new Date(clase.fecha_hora),
@@ -163,4 +163,4 @@ export default function EmpleadoAttendeesListPage() {
       )}
     </div>
   );
-}
+} 

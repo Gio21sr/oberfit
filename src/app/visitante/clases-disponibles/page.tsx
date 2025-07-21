@@ -27,11 +27,11 @@ export default function VisitanteClassesPage() {
       setLoading(true);
       setError(null);
       const fetchedClasses = await getClasses();
-      const processedClasses = fetchedClasses.map(clase => ({
+      const processedClasses = fetchedClasses.map((clase:Clase ) => ({
         ...clase,
         fecha_hora: new Date(clase.fecha_hora),
       }));
-      setClasses(processedClasses.filter(clase => clase.cupo > 0));
+      setClasses(processedClasses.filter((clase:Clase) => clase.cupo > 0));
     } catch (err: any) {
       console.error("Error al cargar clases para visitante:", err);
       setError(err.message || "No se pudieron cargar las clases.");

@@ -34,11 +34,11 @@ export default function SocioClassesPage() {
       setLoading(true);
       setError(null);
       const fetchedClasses = await getClasses();
-      const processedClasses = fetchedClasses.map(clase => ({
+      const processedClasses = fetchedClasses.map((clase: Clase) => ({
         ...clase,
         fecha_hora: new Date(clase.fecha_hora),
       }));
-      setClasses(processedClasses.filter(clase => clase.cupo > 0)); // Solo clases con cupo disponible
+      setClasses(processedClasses.filter((clase: Clase)=> clase.cupo > 0)); // Solo clases con cupo disponible
     } catch (err: any) {
       console.error("Error al cargar clases:", err);
       setError(err.message || "No se pudieron cargar las clases.");
