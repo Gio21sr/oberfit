@@ -1,9 +1,11 @@
 // src/components/RegisterClassForm.tsx
 "use client"; // Este componente necesita interactividad del cliente (estados, eventos)
 
-import { useState } from 'react';
+
 // Importa componentes de React-Bootstrap para construir el formulario
 import { Form, Button, Card as BsCard, Alert } from 'react-bootstrap'; 
+
+import { useState, useEffect } from 'react'; // Importa useEffect
 
 // Importa la Server Action 'registerClass' desde tu archivo de acciones
 import { registerClass } from '@/app/actions';
@@ -11,6 +13,15 @@ import { registerClass } from '@/app/actions';
 export default function RegisterClassForm() { // <-- ¡VERIFICA QUE ESTÉ 'export default' AQUÍ!
   // Estado para mostrar mensajes de respuesta al usuario (éxito o error)
   const [responseMessage, setResponseMessage] = useState<{ type: 'success' | 'danger', message: string } | null>(null);
+  const [minDateTime, setMinDateTime] = useState(''); // Nuevo estado para la fecha mínima
+
+    // Usa useEffect para establecer la fecha y hora mínima una vez que el componente se monta
+  useEffect(() => {
+    const now = new Date();
+    // Formatea la fecha y hora al formato 'YYYY-MM-DDTHH:mm'
+    const formattedNow = now.toISOString().slice(0, 16); 
+    setMinDateTime(formattedNow);
+  }, []); // El array vacío asegura que se ejecute solo una vez al inicio
 
   // Función que se ejecutará al enviar el formulario
   // Recibe automáticamente un objeto FormData si el <Form> tiene la prop 'action'
@@ -71,7 +82,7 @@ export default function RegisterClassForm() { // <-- ¡VERIFICA QUE ESTÉ 'expor
         <Form.Group className="mb-3" controlId="formDateTime">
           <Form.Label className="d-block text-start fw-bold text-dark">Fecha y Hora</Form.Label>
           {/* type="datetime-local" proporciona un selector de fecha y hora nativo del navegador */}
-          <Form.Control type="datetime-local" name="dateTime" required />
+          <Form.Control type="datetime-local" name="dateTime" required step="1800" min={minDateTime} />
         </Form.Group>
 
         {/* Grupo para el campo "Cupo" */}

@@ -161,6 +161,17 @@ export async function registerClass(formData: FormData) {
   if (isNaN(fechaHora.getTime())) {
       throw new Error("Formato de fecha y hora inválido.");
   }
+    // Lógica de restricción de horario
+  if (hours < 6 || hours > 22) {
+    throw new Error("El registro de clases solo es permitido entre las 06:00 y las 21:00.");
+  }
+
+    // --- NUEVA LÓGICA DE RESTRICCIÓN DE FECHA Y HORA ---
+  const now = new Date();
+  if (fechaHora < now) {
+    throw new Error("No se pueden registrar clases en fechas y horas pasadas.");
+  }
+  // --- FIN DE NUEVA LÓGICA ---
 
   try {
     const newClass = await prisma.clase.create({
