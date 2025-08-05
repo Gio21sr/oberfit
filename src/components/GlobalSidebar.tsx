@@ -57,11 +57,13 @@ export default function GlobalSidebar() {
       { label: 'Inicio', href: '/visitante' },
       { label: 'Clases Disponibles', href: '/visitante/clases-disponibles' },
       { label: 'Confirmación de Inscripción', href: '/visitante/inscripcion' },
+      { label: 'Regresar', href: '/' },
     ],
     default: [
       { label: 'Inicio', href: '/' },
       { label: 'Clases Disponibles', href: '/visitante/clases-disponibles' },
       { label: 'Login', href: '/login' },
+      { label: 'Regresar', href: '/' },
     ],
   };
 

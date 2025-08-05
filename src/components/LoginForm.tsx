@@ -21,7 +21,7 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
 
   const handleSubmit = async (formData: FormData) => {
     setErrorMessage(null);
-    setSuccessMessage(null); // Limpia mensajes de éxito previos
+    setSuccessMessage(null); 
 
     try {
       if (showRegisterOption && isRegistering) {
@@ -29,12 +29,14 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
             setErrorMessage("Las contraseñas no coinciden.");
             return;
         }
-
+        
         const result = await registerUser(formData); 
         
         if (result?.success) {
-          setSuccessMessage(result.message); // Muestra el mensaje de éxito
-          setIsRegistering(false); // Vuelve al formulario de login
+          setSuccessMessage(result.message); 
+          setIsRegistering(false); 
+        } else {
+          setErrorMessage(result?.message || 'Error al registrar el usuario.');
         }
       } else {
         const username = formData.get('username') as string;
@@ -72,6 +74,13 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
       {successMessage && <Alert variant="success">{successMessage}</Alert>}
 
       <Form action={handleSubmit}>
+        {isRegistering && showRegisterOption && (
+          <Form.Group className="mb-3" controlId="formFullName">
+            <Form.Label className="d-block text-start fw-bold text-dark">Nombre Completo</Form.Label>
+            <Form.Control type="text" name="fullName" placeholder="Ingrese su nombre completo" required />
+          </Form.Group>
+        )}
+
         <Form.Group className="mb-3" controlId="formUsername">
           <Form.Label className="d-block text-start fw-bold text-dark">Usuario</Form.Label>
           <Form.Control type="text" name="username" placeholder="Usuario" required />

@@ -17,7 +17,7 @@ export default function Header() {
     // 'px-4 py-3' para padding
     <header className="fixed-top bg-light shadow-sm px-4 py-3 d-flex justify-content-between align-items-center">
       {/* Logo como enlace a la página principal */}
-      <Link href="/" className="d-flex align-items-center">
+      <Link href="/login-interno" className="d-flex align-items-center">
         <Image
           src="/oberlicht-logo.png"
           alt="Logo de Oberlicht"

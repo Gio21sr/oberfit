@@ -75,15 +75,16 @@ interface UserData {
 /**
  * Registra un nuevo usuario (socio) en la base de datos `usuarios` (modelo `User`).
  * Esta función es llamada desde el formulario de Login/Registro para socios.
- * @param formData Objeto FormData con 'username', 'email', 'password', 'confirmPassword'.
+ * @param formData Objeto FormData con 'username', 'fullName', 'email', 'password', y 'confirmPassword'.
  */
 export async function registerUser(formData: FormData) {
   const username = formData.get('username') as string;
+  const fullName = formData.get('fullName') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
   const confirmPassword = formData.get('confirmPassword') as string;
 
-  if (!username || !email || !password || !confirmPassword) {
+  if (!username || !fullName || !email || !password || !confirmPassword) {
     throw new Error("Todos los campos son requeridos.");
   }
   if (password !== confirmPassword) {
@@ -101,6 +102,7 @@ export async function registerUser(formData: FormData) {
         ]
       }
     });
+
     if (existingUser) {
       if (existingUser.name === username) {
         throw new Error('El nombre de usuario ya existe.');
@@ -113,6 +115,7 @@ export async function registerUser(formData: FormData) {
     const newUser = await prisma.user.create({
       data: {
         name: username,
+        fullName: fullName,
         email: email,
         password: hashedPassword,
         role: "socio",
@@ -121,16 +124,17 @@ export async function registerUser(formData: FormData) {
         last_reset_month: new Date(),
       },
     });
+
     console.log('Socio registrado en DB (tabla usuarios/User):', newUser);
 
-      return { success: true, message: '¡Usuario creado correctamente!' };
+    return { success: true, message: `¡Bienvenido, ${newUser.fullName}! Tu cuenta ha sido creada.` };
   } catch (error: unknown) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
     if (isErrorWithCode(error) && error.code === 'P2002') {
-        const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido'; // <-- Corregido para target
-        throw new Error(`Ya existe un usuario con este ${target}.`);
+      const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
+      throw new Error(`Ya existe un usuario con este ${target}.`);
     }
     console.error('Error al registrar socio:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al registrar el socio. Inténtalo de nuevo.');
@@ -147,10 +151,10 @@ export async function registerClass(formData: FormData) {
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
   const dateTimeString = formData.get('dateTime') as string;
-  const capacity = parseInt(formData.get('capacity') as string);
+  const capacityString = formData.get('capacity') as string;
 
-  if (!name || !description || !dateTimeString || isNaN(capacity) || capacity <= 0) {
-    throw new Error("Todos los campos de la clase son requeridos y válidos.");
+  if (!name || !description || !dateTimeString || !capacityString) {
+      throw new Error("Todos los campos son obligatorios.");
   }
 
   const [datePart, timePart] = dateTimeString.split('T');
@@ -161,17 +165,58 @@ export async function registerClass(formData: FormData) {
   if (isNaN(fechaHora.getTime())) {
       throw new Error("Formato de fecha y hora inválido.");
   }
-    // Lógica de restricción de horario
-  if (hours < 6 || hours > 22) {
-    throw new Error("El registro de clases solo es permitido entre las 06:00 y las 21:00.");
+  
+  const capacity = parseInt(capacityString, 10);
+  if (isNaN(capacity) || capacity < 1) {
+      throw new Error("El cupo debe ser un número válido mayor a 0.");
   }
 
-    // --- NUEVA LÓGICA DE RESTRICCIÓN DE FECHA Y HORA ---
+  // --- Lógica de validación de negocio actualizada ---
   const now = new Date();
+  // Validación para no registrar en fechas y horas pasadas
   if (fechaHora < now) {
     throw new Error("No se pueden registrar clases en fechas y horas pasadas.");
   }
-  // --- FIN DE NUEVA LÓGICA ---
+
+  const dayOfWeek = fechaHora.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  const classHours = fechaHora.getHours();
+  const classMinutes = fechaHora.getMinutes();
+
+  // Las clases solo pueden empezar en la hora en punto (:00)
+  if (classMinutes !== 0) {
+      throw new Error("La hora de inicio de la clase debe ser una hora en punto (ej. 10:00).");
+  }
+
+  let isScheduleValid = false;
+  
+  switch (dayOfWeek) {
+    // Lunes a Jueves: 6:00 am a 10:00 pm
+    case 1: // Lunes
+    case 2: // Martes
+    case 3: // Miércoles
+    case 4: // Jueves
+      isScheduleValid = classHours >= 6 && classHours < 22;
+      break;
+    // Viernes: 6:00 am a 9:00 pm
+    case 5: // Viernes
+      isScheduleValid = classHours >= 6 && classHours < 21;
+      break;
+    // Sábado: 6:00 am a 2:00 pm
+    case 6: // Sábado
+      isScheduleValid = classHours >= 6 && classHours < 14;
+      break;
+    // Domingo: 7:00 am a 2:00 pm
+    case 0: // Domingo
+      isScheduleValid = classHours >= 7 && classHours < 14;
+      break;
+    default:
+      isScheduleValid = false;
+  }
+
+  if (!isScheduleValid) {
+    throw new Error("El horario seleccionado no coincide con el horario de operación del gimnasio para este día.");
+  }
+  // --- Fin de la lógica de validación de negocio ---
 
   try {
     const newClass = await prisma.clase.create({
@@ -189,11 +234,15 @@ export async function registerClass(formData: FormData) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
+    // Manejo específico para errores de Prisma, como duplicados (P2002)
+    if (isErrorWithCode(error) && error.code === 'P2002') {
+        const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
+        throw new Error(`Ya existe una clase con este ${target}.`);
+    }
     console.error('Error al registrar clase en DB:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al registrar la clase. Inténtalo de nuevo.');
   }
 }
-
 /**
  * Obtiene todas las clases de la base de datos.
  * @returns Un array de objetos de clase.
@@ -248,6 +297,51 @@ export async function updateClass(formData: FormData) {
       throw new Error("Formato de fecha y hora inválido.");
   }
 
+  // --- Lógica de validación de negocio actualizada ---
+  const now = new Date();
+  if (fechaHora < now) {
+    throw new Error("No se pueden actualizar clases a fechas y horas pasadas.");
+  }
+
+  const dayOfWeek = fechaHora.getDay();
+  const classHours = fechaHora.getHours();
+  const classMinutes = fechaHora.getMinutes();
+
+  if (classMinutes !== 0) {
+      throw new Error("La hora de inicio de la clase debe ser una hora en punto (ej. 10:00).");
+  }
+
+  let isScheduleValid = false;
+
+  switch (dayOfWeek) {
+    // Lunes a Jueves: 6:00 am a 10:00 pm
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+      isScheduleValid = classHours >= 6 && classHours < 22;
+      break;
+    // Viernes: 6:00 am a 9:00 pm
+    case 5:
+      isScheduleValid = classHours >= 6 && classHours < 21;
+      break;
+    // Sábado: 6:00 am a 2:00 pm
+    case 6:
+      isScheduleValid = classHours >= 6 && classHours < 14;
+      break;
+    // Domingo: 7:00 am a 2:00 pm
+    case 0:
+      isScheduleValid = classHours >= 7 && classHours < 14;
+      break;
+    default:
+      isScheduleValid = false;
+  }
+
+  if (!isScheduleValid) {
+    throw new Error("El horario seleccionado no coincide con el horario de operación del gimnasio para este día.");
+  }
+  // --- Fin de la lógica de validación de negocio ---
+
   try {
     const updatedClass = await prisma.clase.update({
       where: { id_clase: id_clase },
@@ -265,6 +359,10 @@ export async function updateClass(formData: FormData) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
+    // Manejo del error de registro no encontrado P2025
+    if (isErrorWithCode(error) && error.code === 'P2025') {
+        throw new Error('La clase a actualizar no existe.');
+    }
     console.error('Error al actualizar clase en DB:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al actualizar la clase. Inténtalo de nuevo.');
   }
@@ -272,6 +370,7 @@ export async function updateClass(formData: FormData) {
 
 /**
  * Elimina una clase de la base de datos.
+ * Primero elimina las inscripciones si la clase es pasada.
  * @param formData Objeto FormData que contiene 'id_clase'.
  * @returns El objeto de la clase eliminada.
  * @throws Error si hay un problema al eliminar la clase.
@@ -284,22 +383,67 @@ export async function deleteClass(formData: FormData) {
   }
 
   try {
-    const deletedClass = await prisma.clase.delete({
+    const clase = await prisma.clase.findUnique({
       where: { id_clase: id_clase },
+      select: {
+        fecha_hora: true
+      }
     });
-    console.log('Clase eliminada de DB:', deletedClass);
-    return deletedClass;
+
+    if (!clase) {
+      throw new Error("La clase a eliminar no existe.");
+    }
+
+    const now = new Date();
+    // Verifica si la clase ya pasó
+    if (clase.fecha_hora < now) {
+      console.log(`La clase ID ${id_clase} ya ha pasado. Eliminando inscripciones y luego la clase.`);
+      // Usa una transacción para asegurar que todo se complete o nada se haga
+      const transactionResult = await prisma.$transaction([
+        prisma.inscripcion.deleteMany({
+          where: { id_clase: id_clase },
+        }),
+        prisma.inscripcionVisitante.deleteMany({
+          where: { id_clase: id_clase },
+        }),
+        prisma.clase.delete({
+          where: { id_clase: id_clase },
+        }),
+      ]);
+      console.log('Clase y sus inscripciones pasadas eliminadas de DB:', transactionResult);
+      // Retorna la clase eliminada (que es el tercer elemento de la transacción)
+      return transactionResult[2];
+    } else {
+      // La clase es futura, intenta eliminarla directamente.
+      // Si tiene inscripciones, la base de datos lanzará un error (P2003).
+      const deletedClass = await prisma.clase.delete({
+        where: { id_clase: id_clase },
+      });
+      console.log('Clase futura eliminada de DB:', deletedClass);
+      return deletedClass;
+    }
+
   } catch (error: unknown) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
+    // Manejo del error de clave foránea P2003
     if (isErrorWithCode(error) && error.code === 'P2003') {
-        throw new Error('No se puede eliminar la clase porque tiene inscripciones asociadas.');
+        throw new Error('No se puede eliminar la clase porque tiene inscripciones activas (la clase no ha pasado).');
+    }
+    // Manejo del error de registro no encontrado P2025
+    if (isErrorWithCode(error) && error.code === 'P2025') {
+        throw new Error('La clase a eliminar no existe.');
     }
     console.error('Error al eliminar clase de DB:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al eliminar la clase. Inténtalo de nuevo.');
   }
 }
+
+
+
+
+
 
 /**
  * Registra un nuevo usuario (Empleado o Socio) en la tabla 'usuarios' (modelo 'User').

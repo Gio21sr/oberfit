@@ -15,12 +15,7 @@ export default function HomePage() {
       {/* 'g-4' para un gap entre las columnas */}
       <div className="row justify-content-center g-4 w-100" style={{ maxWidth: '1000px' }}>
         {/* Cada Card estará dentro de una columna de Bootstrap */}
-        <div className="col-12 col-md-6 col-lg-3"> {/* 12 columnas en móvil, 6 en md, 3 en lg */}
-          <Card title="Admin" />
-        </div>
-        <div className="col-12 col-md-6 col-lg-3">
-          <Card title="Empleado" />
-        </div>
+        
         <div className="col-12 col-md-6 col-lg-3">
           <Card title="Socio" />
         </div>

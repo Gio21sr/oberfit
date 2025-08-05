@@ -12,4 +12,4 @@ export default function AdminClassesPage() {
       <ClassListTable showActions={true} /> 
     </div>
   );
-}
+} 
