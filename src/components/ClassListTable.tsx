@@ -89,7 +89,6 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
 
   const handleEditClick = (clase: Clase) => {
     setCurrentClass(clase);
-    // 🚨 Usa las funciones de utilidad para obtener la fecha y hora local para el modal
     const localDate = new Date(clase.fecha_hora);
     setEditDate(getLocalISODate(localDate));
     setEditTime(getLocalTime(localDate));
@@ -179,7 +178,6 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
                 <td>{clase.id_clase}</td>
                 <td>{clase.nombre_clase}</td>
                 <td>{clase.descripcion}</td>
-                {/* 🚨 Usa la función de utilidad para mostrar la hora local */}
                 <td>{formatDbDateTimeToLocal(clase.fecha_hora)}</td>
                 <td>{clase.cupo}</td>
                 <td>{clase.capacidad_maxima !== null ? clase.capacidad_maxima : 'N/A'}</td>

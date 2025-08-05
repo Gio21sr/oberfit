@@ -1,47 +1,78 @@
 // src/utils/formatDate.ts
-
 "use client";
 
+// Define las opciones de formato para la zona horaria de la Ciudad de México
+const timeZoneOptions: Intl.DateTimeFormatOptions = {
+  timeZone: 'America/Mexico_City',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+};
+
 /**
- * Formatea una fecha/hora UTC de la base de datos a la zona horaria de la Ciudad de México.
+ * Formatea una fecha/hora UTC de la base de datos a un formato legible
+ * en la zona horaria de la Ciudad de México.
  * @param date La fecha/hora como objeto Date o cadena de fecha válida.
- * @returns La fecha/hora formateada como string en la zona horaria de CDMX.
+ * @returns La fecha/hora formateada como string.
  */
 export function formatDbDateTimeToLocal(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-
   if (isNaN(dateObj.getTime())) {
     return 'Fecha inválida';
   }
-  
-  const options: Intl.DateTimeFormatOptions = {
+
+  // Usa la API de Intl para formatear directamente a la zona horaria de CDMX
+  // y luego parsear el resultado para un formato específico.
+  const formatter = new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
-    timeZone: 'America/Mexico_City', // 🚨 Usa la zona horaria de CDMX
-  };
+    hour12: true, // Formato AM/PM para mayor claridad
+  });
 
-  return dateObj.toLocaleString('es-MX', options);
+  return formatter.format(dateObj);
 }
 
-// Función para obtener la fecha en formato local YYYY-MM-DD
+/**
+ * Obtiene la fecha en formato YYYY-MM-DD para la zona horaria de la Ciudad de México.
+ * @param date La fecha/hora como objeto Date o cadena de fecha válida.
+ * @returns La fecha en formato de string.
+ */
 export function getLocalISODate(date: Date): string {
-  // Asegurarse de usar la zona horaria de CDMX para la conversión
-  const localDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-  const year = localDate.getFullYear();
-  const month = (localDate.getMonth() + 1).toString().padStart(2, '0');
-  const day = localDate.getDate().toString().padStart(2, '0');
+  // Crea un objeto de formato para la zona horaria de CDMX
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find(part => part.type === 'year')?.value;
+  const month = parts.find(part => part.type === 'month')?.value;
+  const day = parts.find(part => part.type === 'day')?.value;
+
   return `${year}-${month}-${day}`;
 }
 
-// Función para obtener la hora en formato local HH:mm
+/**
+ * Obtiene la hora en formato HH:mm para la zona horaria de la Ciudad de México.
+ * @param date La fecha/hora como objeto Date o cadena de fecha válida.
+ * @returns La hora en formato de string.
+ */
 export function getLocalTime(date: Date): string {
-  // Asegurarse de usar la zona horaria de CDMX para la conversión
-  const localDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-  const hours = localDate.getHours().toString().padStart(2, '0');
-  const minutes = localDate.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  // Crea un objeto de formato para la zona horaria de CDMX
+  const formatter = new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return formatter.format(date);
 }

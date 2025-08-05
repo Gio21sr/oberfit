@@ -5,7 +5,6 @@ import { ListGroup, Button } from 'react-bootstrap';
 import Link from 'next/link';
 import { formatDbDateTimeToLocal } from '@/utils/formatDate';
 
-// Definimos la interfaz para las props que recibirá
 interface Inscripcion {
     id_inscripcion: number;
     clase: {
