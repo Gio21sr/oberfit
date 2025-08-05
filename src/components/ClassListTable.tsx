@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Table, Spinner, Alert, Button, Modal, Form, Row, Col } from 'react-bootstrap';
 import { getClasses, updateClass, deleteClass } from '@/app/actions';
-import { formatDbDateTimeToLocal } from '@/utils/formatDate';
+import { formatDbDateTimeToLocal, getLocalISODate, getLocalTime } from '@/utils/formatDate';
 
 interface Clase {
   id_clase: number;
@@ -27,13 +27,10 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
   const [currentClass, setCurrentClass] = useState<Clase | null>(null);
   const [responseMessage, setResponseMessage] = useState<{ type: 'success' | 'danger', message: string } | null>(null);
   
-  // Nuevos estados para manejar los campos de fecha y hora en el modal
-  const [minDate, setMinDate] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [timeOptions, setTimeOptions] = useState<string[]>([]);
 
-  // Función para obtener las clases de la base de datos
   const fetchClasses = async () => {
     try {
       setLoading(true);
@@ -52,18 +49,14 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
     }
   };
 
-  // Se ejecuta al montar el componente para obtener las clases
   useEffect(() => {
     fetchClasses();
   }, []);
 
-  // Se ejecuta cuando se abre el modal y cuando cambia la fecha en el modal para generar las opciones de hora
   useEffect(() => {
     if (!editDate) return;
-
     const fecha = new Date(editDate);
     const dayOfWeek = fecha.getDay();
-
     const newTimeOptions = [];
     let startHour = 0;
     let endHour = 0;
@@ -88,27 +81,21 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
       default:
         break;
     }
-
     for (let hour = startHour; hour < endHour; hour++) {
       newTimeOptions.push(`${String(hour).padStart(2, '0')}:00`);
     }
-
     setTimeOptions(newTimeOptions);
   }, [editDate]);
 
-
-  // Manejador para el botón "Editar" de una clase
   const handleEditClick = (clase: Clase) => {
     setCurrentClass(clase);
-    // Extrae la fecha y la hora de la fecha_hora de la clase
-    const datePart = clase.fecha_hora.toISOString().split('T')[0];
-    const timePart = clase.fecha_hora.toTimeString().split(' ')[0].substring(0, 5);
-    setEditDate(datePart);
-    setEditTime(timePart);
+    // 🚨 Usa las funciones de utilidad para obtener la fecha y hora local para el modal
+    const localDate = new Date(clase.fecha_hora);
+    setEditDate(getLocalISODate(localDate));
+    setEditTime(getLocalTime(localDate));
     setShowEditModal(true);
   };
   
-  // Manejador para el botón "Eliminar" de una clase
   const handleDeleteClick = async (id_clase: number) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta clase? Esta acción es irreversible.')) {
       return;
@@ -126,21 +113,16 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
     }
   };
 
-  // Manejador para el envío del formulario de actualización en el modal
   const handleUpdateSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setResponseMessage(null);
     if (!currentClass) return;
-
     const formData = new FormData(event.currentTarget);
     const date = formData.get('date') as string;
     const time = formData.get('time') as string;
-    
-    // Combina la fecha y la hora para enviarla a la Server Action
     const dateTime = `${date}T${time}`;
+    
     formData.set('dateTime', dateTime);
-
     formData.append('id_clase', currentClass.id_clase.toString());
 
     try {
@@ -197,6 +179,7 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
                 <td>{clase.id_clase}</td>
                 <td>{clase.nombre_clase}</td>
                 <td>{clase.descripcion}</td>
+                {/* 🚨 Usa la función de utilidad para mostrar la hora local */}
                 <td>{formatDbDateTimeToLocal(clase.fecha_hora)}</td>
                 <td>{clase.cupo}</td>
                 <td>{clase.capacidad_maxima !== null ? clase.capacidad_maxima : 'N/A'}</td>
@@ -252,7 +235,6 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
                       type="date" 
                       name="date" 
                       required 
-                      min={minDate}
                       value={editDate}
                       onChange={(e) => setEditDate(e.target.value)} 
                     />

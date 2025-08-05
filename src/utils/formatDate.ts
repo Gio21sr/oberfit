@@ -1,18 +1,11 @@
 // src/utils/formatDate.ts
+
 "use client";
 
-// No necesitamos importar 'format' ni 'utcToZonedTime' de librerías externas con esta opción
-// import { format } from 'date-fns';
-// import { utcToZonedTime } from 'date-fns-tz';
-
-// No necesitamos userTimeZone directamente para toLocaleString, ya que lo usa por defecto.
-// const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
 /**
- * Formatea una fecha/hora UTC obtenida de la base de datos a la zona horaria local del usuario
- * usando la API nativa de JavaScript.
+ * Formatea una fecha/hora UTC de la base de datos a la zona horaria de la Ciudad de México.
  * @param date La fecha/hora como objeto Date o cadena de fecha válida.
- * @returns La fecha/hora formateada como string.
+ * @returns La fecha/hora formateada como string en la zona horaria de CDMX.
  */
 export function formatDbDateTimeToLocal(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -20,40 +13,35 @@ export function formatDbDateTimeToLocal(date: string | Date): string {
   if (isNaN(dateObj.getTime())) {
     return 'Fecha inválida';
   }
-
-  // Opciones de formato. Puedes ajustarlas según tus preferencias.
-  // month: '2-digit' o 'numeric' o 'long' (ej. 07, 7, Julio)
-  // day: '2-digit' o 'numeric'
-  // year: 'numeric' (ej. 2025)
-  // hour: '2-digit' o 'numeric'
-  // minute: '2-digit'
-  // hour12: true/false (formato 12h AM/PM o 24h)
+  
   const options: Intl.DateTimeFormatOptions = {
     year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    month: 'long',
+    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false, // Usar formato 24 horas (ej. 22:52)
-    // No necesitas especificar timeZone aquí si quieres la zona horaria del usuario por defecto
-    // timeZone: 'America/Mexico_City', // Si quisieras forzar una zona horaria específica
+    hour12: true,
+    timeZone: 'America/Mexico_City', // 🚨 Usa la zona horaria de CDMX
   };
 
-  // El primer argumento es el locale (ej. 'es-MX' para español de México)
-  // El segundo argumento son las opciones de formato
-  return dateObj.toLocaleString(navigator.language, options); // Usa el idioma del navegador del usuario
+  return dateObj.toLocaleString('es-MX', options);
 }
 
-// Opcional: Función para formatear solo la hora
-export function formatTime(date: string | Date): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(dateObj.getTime())) {
-    return 'Hora inválida';
-  }
-  const options: Intl.DateTimeFormatOptions = {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  };
-  return dateObj.toLocaleString(navigator.language, options);
+// Función para obtener la fecha en formato local YYYY-MM-DD
+export function getLocalISODate(date: Date): string {
+  // Asegurarse de usar la zona horaria de CDMX para la conversión
+  const localDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+  const year = localDate.getFullYear();
+  const month = (localDate.getMonth() + 1).toString().padStart(2, '0');
+  const day = localDate.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Función para obtener la hora en formato local HH:mm
+export function getLocalTime(date: Date): string {
+  // Asegurarse de usar la zona horaria de CDMX para la conversión
+  const localDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+  const hours = localDate.getHours().toString().padStart(2, '0');
+  const minutes = localDate.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
 }

@@ -3,6 +3,7 @@
 
 import { ListGroup, Button } from 'react-bootstrap';
 import Link from 'next/link';
+import { formatDbDateTimeToLocal } from '@/utils/formatDate';
 
 // Definimos la interfaz para las props que recibirá
 interface Inscripcion {
@@ -39,8 +40,7 @@ export default function ClasesLista({ inscripciones }: ClasesListaProps) {
                                 <small className="text-muted">Inscrito el: {new Date(inscripcion.fecha_registro).toLocaleDateString()}</small>
                             </div>
                             <div>
-                                <p className="mb-0"><strong>Fecha:</strong> {new Date(inscripcion.clase.fecha_hora).toLocaleDateString()}</p>
-                                <p className="mb-0"><strong>Hora:</strong> {new Date(inscripcion.clase.fecha_hora).toLocaleTimeString()}</p>
+                                <p className="mb-0"><strong>Fecha y Hora:</strong> {formatDbDateTimeToLocal(inscripcion.clase.fecha_hora)}</p>
                             </div>
                         </ListGroup.Item>
                     ))}
