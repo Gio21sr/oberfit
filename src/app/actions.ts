@@ -389,8 +389,9 @@ export async function updateClass(formData: FormData) {
 }
 
 /**
- * Elimina una clase de la base de datos.
- * Primero elimina las inscripciones si la clase es pasada.
+ * Elimina una clase de la base de datos de forma definitiva.
+ * Elimina primero todas las inscripciones asociadas y luego la clase,
+ * sin importar si es una clase futura o pasada.
  * @param formData Objeto FormData que contiene 'id_clase'.
  * @returns El objeto de la clase eliminada.
  * @throws Error si hay un problema al eliminar la clase.
@@ -413,53 +414,40 @@ export async function deleteClass(formData: FormData) {
     if (!clase) {
       throw new Error("La clase a eliminar no existe.");
     }
-
-    const now = new Date();
-    // Verifica si la clase ya pasó
-    if (clase.fecha_hora < now) {
-      console.log(`La clase ID ${id_clase} ya ha pasado. Eliminando inscripciones y luego la clase.`);
-      // Usa una transacción para asegurar que todo se complete o nada se haga
-      const transactionResult = await prisma.$transaction([
-        prisma.inscripcion.deleteMany({
-          where: { id_clase: id_clase },
-        }),
-        prisma.inscripcionVisitante.deleteMany({
-          where: { id_clase: id_clase },
-        }),
-        prisma.clase.delete({
-          where: { id_clase: id_clase },
-        }),
-      ]);
-      console.log('Clase y sus inscripciones pasadas eliminadas de DB:', transactionResult);
-      // Retorna la clase eliminada (que es el tercer elemento de la transacción)
-      return transactionResult[2];
-    } else {
-      // La clase es futura, intenta eliminarla directamente.
-      // Si tiene inscripciones, la base de datos lanzará un error (P2003).
-      const deletedClass = await prisma.clase.delete({
+    
+    console.log(`Eliminando clase ID ${id_clase} y todas sus inscripciones, sin importar la fecha.`);
+    
+    // Usa una transacción para asegurar que todo se complete o nada se haga
+    const transactionResult = await prisma.$transaction([
+      prisma.inscripcion.deleteMany({
         where: { id_clase: id_clase },
-      });
-      console.log('Clase futura eliminada de DB:', deletedClass);
-      return deletedClass;
-    }
+      }),
+      prisma.inscripcionVisitante.deleteMany({
+        where: { id_clase: id_clase },
+      }),
+      prisma.clase.delete({
+        where: { id_clase: id_clase },
+      }),
+    ]);
+    
+    console.log('Clase y todas sus inscripciones eliminadas de DB:', transactionResult);
+    
+    // Retorna la clase eliminada (que es el tercer elemento de la transacción)
+    return transactionResult[2];
 
   } catch (error: unknown) {
+    // Manejo de errores simplificado, ya que P2003 ya no es posible.
     if (isErrorWithRedirect(error)) {
       throw error;
     }
-    // Manejo del error de clave foránea P2003
-    if (isErrorWithCode(error) && error.code === 'P2003') {
-        throw new Error('No se puede eliminar la clase porque tiene inscripciones activas (la clase no ha pasado).');
-    }
     // Manejo del error de registro no encontrado P2025
     if (isErrorWithCode(error) && error.code === 'P2025') {
-        throw new Error('La clase a eliminar no existe.');
+      throw new Error('La clase a eliminar no existe.');
     }
     console.error('Error al eliminar clase de DB:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al eliminar la clase. Inténtalo de nuevo.');
   }
 }
-
 
 
 
