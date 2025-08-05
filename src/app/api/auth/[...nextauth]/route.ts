@@ -33,7 +33,7 @@ declare module "next-auth/jwt" {
 }
 
 // Define la lógica de autenticación y sesión para NextAuth.js
-export const authOptions = {
+const authOptions = {
   // Conecta NextAuth.js con tu base de datos a través de Prisma
   adapter: PrismaAdapter(prisma) as Adapter, 
   
