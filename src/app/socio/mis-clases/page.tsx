@@ -15,7 +15,6 @@ export default async function MisClasesPage() {
 
     const userId = parseInt(session.user.id);
 
-    // 🚨 Llama a la acción del servidor para obtener los datos
     const inscripciones = await getSocioInscriptions(userId);
 
     return (
