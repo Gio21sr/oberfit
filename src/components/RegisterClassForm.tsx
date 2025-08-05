@@ -82,12 +82,7 @@ export default function RegisterClassForm() {
     
     // 1. Crea la fecha en zona horaria local (CDMX)
     const localDate = new Date(`${date}T${time}:00`);
-    
-    // 2. Convierte a UTC para el backend
-    const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
-    
-    // 3. Guarda en formato ISO sin modificar (UTC)
-    formData.append('dateTime', utcDate.toISOString());
+    formData.append('dateTime', localDate.toISOString());
 
     try {
       await registerClass(formData);
