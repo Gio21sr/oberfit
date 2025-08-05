@@ -148,56 +148,61 @@ export async function registerUser(formData: FormData) {
  * @throws Error si los datos son inválidos o hay un problema en la DB.
  */
 export async function registerClass(formData: FormData) {
-  const name = formData.get('name') as string;
+  const name = formData.get('className') as string;
   const description = formData.get('description') as string;
-  // 🚨 Corrección: Aquí tomamos el string que ya incluye la zona horaria de CDMX
-  const dateTimeString = formData.get('dateTime') as string; 
+  const dateTimeString = formData.get('dateTime') as string;
   const capacityString = formData.get('capacity') as string;
 
+  // Validaciones básicas
   if (!name || !description || !dateTimeString || !capacityString) {
     throw new Error("Todos los campos son obligatorios.");
   }
 
-  // 🚨 Corrección: Creamos el objeto Date directamente del string. Esto asegura que la zona horaria sea la correcta.
-  const fechaHora = new Date(dateTimeString);
+  if (name.length > 100) {
+    throw new Error("El nombre de la clase no puede exceder 100 caracteres.");
+  }
 
+  // Procesamiento de fecha (viene en UTC desde el frontend)
+  const fechaHora = new Date(dateTimeString);
   if (isNaN(fechaHora.getTime())) {
     throw new Error("Formato de fecha y hora inválido.");
   }
-    
+
   const capacity = parseInt(capacityString, 10);
   if (isNaN(capacity) || capacity < 1) {
     throw new Error("El cupo debe ser un número válido mayor a 0.");
   }
 
-  // --- Lógica de validación de negocio actualizada ---
-  const now = new Date();
-  // Validación para no registrar en fechas y horas pasadas
-  if (fechaHora < now) {
-    throw new Error("No se pueden registrar clases en fechas y horas pasadas.");
+  // Validación de fecha/hora (convertir a CDMX)
+  const cdmxOffset = -6 * 60 * 60 * 1000; // UTC-6
+  const fechaHoraCDMX = new Date(fechaHora.getTime() + cdmxOffset);
+  const nowCDMX = new Date(Date.now() + cdmxOffset);
+
+  if (fechaHoraCDMX < nowCDMX) {
+    throw new Error("No se pueden registrar clases en fechas pasadas.");
   }
 
-  const dayOfWeek = fechaHora.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-  const classHours = fechaHora.getHours();
-  const classMinutes = fechaHora.getMinutes();
+  const dayOfWeek = fechaHoraCDMX.getDay();
+  const classHours = fechaHoraCDMX.getHours();
+  const classMinutes = fechaHoraCDMX.getMinutes();
 
   if (classMinutes !== 0) {
-    throw new Error("La hora de inicio de la clase debe ser una hora en punto (ej. 10:00).");
+    throw new Error("La hora de inicio debe ser en punto (ej. 10:00).");
   }
 
+  // Validación de horario del gimnasio (CDMX)
   let isScheduleValid = false;
-  
   switch (dayOfWeek) {
-    case 1: case 2: case 3: case 4:
+    case 1: case 2: case 3: case 4: // Lunes a Jueves
       isScheduleValid = classHours >= 6 && classHours < 22;
       break;
-    case 5:
+    case 5: // Viernes
       isScheduleValid = classHours >= 6 && classHours < 21;
       break;
-    case 6:
+    case 6: // Sábado
       isScheduleValid = classHours >= 6 && classHours < 14;
       break;
-    case 0:
+    case 0: // Domingo
       isScheduleValid = classHours >= 7 && classHours < 14;
       break;
     default:
@@ -205,32 +210,45 @@ export async function registerClass(formData: FormData) {
   }
 
   if (!isScheduleValid) {
-    throw new Error("El horario seleccionado no coincide con el horario de operación del gimnasio para este día.");
+    throw new Error("El horario seleccionado no está dentro del horario de operación del gimnasio.");
   }
-  // --- Fin de la lógica de validación de negocio ---
 
   try {
     const newClass = await prisma.clase.create({
       data: {
         nombre_clase: name,
         descripcion: description,
-        fecha_hora: fechaHora,
+        fecha_hora: fechaHora, // Se guarda en UTC
         cupo: capacity,
         capacidad_maxima: capacity,
       },
     });
-    console.log('Clase registrada en DB:', newClass);
+
+    console.log('Clase registrada exitosamente:', newClass);
     return newClass;
+
   } catch (error: unknown) {
-    if (isErrorWithRedirect(error)) {
-      throw error;
+    console.error('Error al registrar clase:', error);
+    
+    if (isErrorWithCode(error)) {
+      if (error.code === 'P2002') {
+        const target = error.meta?.target;
+        if (Array.isArray(target) && target.includes('nombre_clase')) {
+          throw new Error("Ya existe una clase con este nombre.");
+        }
+        throw new Error("Error de duplicado en la base de datos.");
+      }
+      
+      if (error.code === 'P2025') {
+        throw new Error("Operación rechazada por validación de base de datos.");
+      }
     }
-    if (isErrorWithCode(error) && error.code === 'P2002') {
-        const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
-        throw new Error(`Ya existe una clase con este ${target}.`);
-    }
-    console.error('Error al registrar clase en DB:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al registrar la clase. Inténtalo de nuevo.');
+
+    throw new Error(
+      isErrorWithMessage(error) 
+        ? error.message 
+        : "Error desconocido al registrar la clase. Por favor intente nuevamente."
+    );
   }
 }
 
@@ -274,57 +292,53 @@ export async function updateClass(formData: FormData) {
   const newCapacity = parseInt(formData.get('capacity') as string);
   const newCapacidadMaxima = parseInt(formData.get('capacidadMaxima') as string);
 
-  if (isNaN(id_clase) || !name || !description || !dateTimeString || isNaN(newCapacity) || newCapacity < 0 || isNaN(newCapacidadMaxima) || newCapacidadMaxima < 0) {
-    throw new Error("Todos los campos de la clase son requeridos y válidos para actualizar.");
+  // Validaciones básicas
+  if (isNaN(id_clase) || !name || !description || !dateTimeString || 
+      isNaN(newCapacity) || newCapacity < 0 || 
+      isNaN(newCapacidadMaxima) || newCapacidadMaxima < 1) {
+    throw new Error("Todos los campos son requeridos y deben ser válidos.");
   }
 
   if (newCapacity > newCapacidadMaxima) {
-      throw new Error("El cupo disponible no puede ser mayor que la capacidad máxima.");
+    throw new Error("El cupo disponible no puede ser mayor que la capacidad máxima.");
   }
 
-  const [datePart, timePart] = dateTimeString.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hours, minutes] = timePart.split(':').map(Number);
-  const fechaHora = new Date(year, month - 1, day, hours, minutes);
-
+  // Procesamiento de fecha (UTC)
+  const fechaHora = new Date(dateTimeString);
   if (isNaN(fechaHora.getTime())) {
-      throw new Error("Formato de fecha y hora inválido.");
+    throw new Error("Formato de fecha y hora inválido.");
   }
 
-  // --- Lógica de validación de negocio actualizada ---
-  const now = new Date();
-  if (fechaHora < now) {
-    throw new Error("No se pueden actualizar clases a fechas y horas pasadas.");
+  // Validación de fecha/hora (convertir a CDMX)
+  const cdmxOffset = -6 * 60 * 60 * 1000; // UTC-6
+  const fechaHoraCDMX = new Date(fechaHora.getTime() + cdmxOffset);
+  const nowCDMX = new Date(Date.now() + cdmxOffset);
+
+  if (fechaHoraCDMX < nowCDMX) {
+    throw new Error("No se pueden programar clases en fechas pasadas.");
   }
 
-  const dayOfWeek = fechaHora.getDay();
-  const classHours = fechaHora.getHours();
-  const classMinutes = fechaHora.getMinutes();
+  const dayOfWeek = fechaHoraCDMX.getDay();
+  const classHours = fechaHoraCDMX.getHours();
+  const classMinutes = fechaHoraCDMX.getMinutes();
 
   if (classMinutes !== 0) {
-      throw new Error("La hora de inicio de la clase debe ser una hora en punto (ej. 10:00).");
+    throw new Error("La hora de inicio debe ser en punto (ej. 10:00).");
   }
 
+  // Validación de horario del gimnasio (CDMX)
   let isScheduleValid = false;
-
   switch (dayOfWeek) {
-    // Lunes a Jueves: 6:00 am a 10:00 pm
-    case 1:
-    case 2:
-    case 3:
-    case 4:
+    case 1: case 2: case 3: case 4: // Lunes a Jueves
       isScheduleValid = classHours >= 6 && classHours < 22;
       break;
-    // Viernes: 6:00 am a 9:00 pm
-    case 5:
+    case 5: // Viernes
       isScheduleValid = classHours >= 6 && classHours < 21;
       break;
-    // Sábado: 6:00 am a 2:00 pm
-    case 6:
+    case 6: // Sábado
       isScheduleValid = classHours >= 6 && classHours < 14;
       break;
-    // Domingo: 7:00 am a 2:00 pm
-    case 0:
+    case 0: // Domingo
       isScheduleValid = classHours >= 7 && classHours < 14;
       break;
     default:
@@ -332,33 +346,45 @@ export async function updateClass(formData: FormData) {
   }
 
   if (!isScheduleValid) {
-    throw new Error("El horario seleccionado no coincide con el horario de operación del gimnasio para este día.");
+    throw new Error("El horario seleccionado no está dentro del horario de operación del gimnasio.");
   }
-  // --- Fin de la lógica de validación de negocio ---
 
   try {
     const updatedClass = await prisma.clase.update({
-      where: { id_clase: id_clase },
+      where: { id_clase },
       data: {
         nombre_clase: name,
         descripcion: description,
-        fecha_hora: fechaHora,
+        fecha_hora: fechaHora, // Se guarda en UTC
         cupo: newCapacity,
         capacidad_maxima: newCapacidadMaxima,
       },
     });
-    console.log('Clase actualizada en DB:', updatedClass);
+
+    console.log('Clase actualizada exitosamente:', updatedClass);
     return updatedClass;
+
   } catch (error: unknown) {
-    if (isErrorWithRedirect(error)) {
-      throw error;
+    console.error('Error al actualizar clase:', error);
+    
+    if (isErrorWithCode(error)) {
+      switch (error.code) {
+        case 'P2025':
+          throw new Error("La clase que intentas actualizar no existe.");
+        case 'P2002':
+          throw new Error("Ya existe una clase con este nombre.");
+        case 'P2003':
+          throw new Error("No se puede actualizar debido a restricciones de base de datos.");
+        default:
+          throw new Error("Error de base de datos al actualizar la clase.");
+      }
     }
-    // Manejo del error de registro no encontrado P2025
-    if (isErrorWithCode(error) && error.code === 'P2025') {
-        throw new Error('La clase a actualizar no existe.');
-    }
-    console.error('Error al actualizar clase en DB:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al actualizar la clase. Inténtalo de nuevo.');
+
+    throw new Error(
+      isErrorWithMessage(error)
+        ? error.message
+        : "Error desconocido al actualizar la clase. Por favor intente nuevamente."
+    );
   }
 }
 
