@@ -213,6 +213,20 @@ export async function registerClass(formData: FormData) {
     throw new Error("El horario seleccionado no está dentro del horario de operación del gimnasio.");
   }
 
+  // ---------------------------------------------------------------------
+  // ** NUEVA VALIDACIÓN: Verificar si ya existe una clase en este horario **
+  // ---------------------------------------------------------------------
+  const existingClass = await prisma.clase.findFirst({
+    where: {
+      fecha_hora: fechaHora,
+    },
+  });
+
+  if (existingClass) {
+    throw new Error("Ya existe una clase programada para esta fecha y hora. Por favor, selecciona otro horario.");
+  }
+  // ---------------------------------------------------------------------
+
   try {
     const newClass = await prisma.clase.create({
       data: {
@@ -251,8 +265,6 @@ export async function registerClass(formData: FormData) {
     );
   }
 }
-
-
 
 
 /**
