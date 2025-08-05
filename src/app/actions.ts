@@ -234,6 +234,32 @@ export async function registerClass(formData: FormData) {
   }
 }
 
+
+
+
+/**
+ * Obtiene todas las clases de la base de datos.
+ * @returns Un array de objetos de clase.
+ * @throws Error si hay un problema al obtener las clases.
+ */
+export async function getClasses() {
+  try {
+    const classes = await prisma.clase.findMany({
+        orderBy: {
+            fecha_hora: 'asc',
+        }
+    });
+    console.log('Clases obtenidas de DB:', classes);
+    return classes;
+  } catch (error: unknown) {
+    if (isErrorWithRedirect(error)) {
+      throw error;
+    }
+    console.error('Error al obtener clases de DB:', error);
+    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al obtener las clases. Inténtalo de nuevo.');
+  }
+}
+
 /**
  * Actualiza los detalles de una clase existente en la base de datos.
  * @param formData Objeto FormData con id_clase, name, description, dateTime, capacity, capacidadMaxima.
