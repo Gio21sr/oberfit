@@ -10,6 +10,7 @@ export default function RegisterClassForm() {
   const [minDate, setMinDate] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [timeOptions, setTimeOptions] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState('');
 
   useEffect(() => {
     const today = new Date();
@@ -35,71 +36,67 @@ export default function RegisterClassForm() {
       case 1:
       case 2:
       case 3:
-      case 4: // Lunes a Jueves: 6:00 am a 10:00 pm
+      case 4:
         startHour = 6;
         endHour = 22;
         break;
-      case 5: // Viernes: 6:00 am a 9:00 pm
+      case 5:
         startHour = 6;
         endHour = 21;
         break;
-      case 6: // Sábado: 6:00 am a 2:00 pm
+      case 6:
         startHour = 6;
         endHour = 14;
         break;
-      case 0: // Domingo: 7:00 am a 2:00 pm
+      case 0:
         startHour = 7;
         endHour = 14;
         break;
       default:
         break;
     }
-
-    // Genera las horas en punto dentro del rango
     for (let hour = startHour; hour < endHour; hour++) {
       newTimeOptions.push(`${String(hour).padStart(2, '0')}:00`);
     }
-
     setTimeOptions(newTimeOptions);
+    setSelectedTime(newTimeOptions[0] || '');
   }, [selectedDate]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setResponseMessage(null);
 
-    const formData = new FormData(event.target as HTMLFormElement);
+    const formData = new FormData(event.currentTarget);
     const date = formData.get('date') as string;
     const time = formData.get('time') as string;
-
-    const dateTime = `${date}T${time}`;
-    formData.set('dateTime', dateTime);
+    
+    // 🚨 Corrección: Construye un string con el formato ISO 8601 que incluye el desfase de la zona horaria
+    const mexicoCityOffset = -6; // CDMX es UTC-6
+    const isoDateTimeString = `${date}T${time}:00.000${mexicoCityOffset >= 0 ? '+' : '-'}${String(Math.abs(mexicoCityOffset)).padStart(2, '0')}:00`;
+    
+    formData.append('dateTime', isoDateTimeString);
 
     try {
       await registerClass(formData);
       setResponseMessage({ type: 'success', message: 'Clase registrada con éxito.' });
-      (event.target as HTMLFormElement).reset();
-    } catch (error: any) {
-      setResponseMessage({ type: 'danger', message: error.message || 'Error al registrar la clase.' });
-      console.error('Error al registrar clase desde el componente:', error);
+      // Limpiar formulario si es necesario
+    } catch (err: any) {
+      setResponseMessage({ type: 'danger', message: err.message || 'Error al registrar la clase.' });
     }
   };
 
   return (
-    <BsCard className="p-4 shadow-sm text-center" style={{ maxWidth: '600px', margin: 'auto' }}>
-      <BsCard.Title as="h2" className="mb-4 fs-3 fw-bold text-dark">Registrar Nueva Clase</BsCard.Title>
-      {responseMessage && (
-        <Alert variant={responseMessage.type} onClose={() => setResponseMessage(null)} dismissible>
-          {responseMessage.message}
-        </Alert>
-      )}
-      <Form onSubmit={handleSubmit}>
+    <BsCard className="p-4 shadow-sm">
+      <h3 className="text-center mb-4">Registrar Nueva Clase</h3>
+      <Form onSubmit={handleFormSubmit}>
         <Form.Group className="mb-3" controlId="formClassName">
           <Form.Label className="d-block text-start fw-bold text-dark">Nombre de la Clase</Form.Label>
-          <Form.Control type="text" name="name" placeholder="Ej: Yoga para Principiantes" required />
+          <Form.Control type="text" name="className" placeholder="Ej: Yoga Matutino" required />
         </Form.Group>
+        
         <Form.Group className="mb-3" controlId="formDescription">
           <Form.Label className="d-block text-start fw-bold text-dark">Descripción</Form.Label>
-          <Form.Control as="textarea" rows={3} name="description" placeholder="Describe brevemente la clase..." required />
+          <Form.Control as="textarea" rows={3} name="description" placeholder="Breve descripción de la clase" required />
         </Form.Group>
         
         <Row className="mb-3">
@@ -119,7 +116,7 @@ export default function RegisterClassForm() {
           <Col md={6}>
             <Form.Group controlId="formTime">
               <Form.Label className="d-block text-start fw-bold text-dark">Hora</Form.Label>
-              <Form.Select name="time" required>
+              <Form.Select name="time" required value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)}>
                 <option value="">Selecciona la hora</option>
                 {timeOptions.map(time => (
                   <option key={time} value={time}>{time}</option>
@@ -134,10 +131,15 @@ export default function RegisterClassForm() {
           <Form.Control type="number" name="capacity" min="1" placeholder="Ej: 20" required />
         </Form.Group>
 
-        <Button variant="primary" type="submit" className="w-100 py-2 fw-bold">
+        <Button type="submit" variant="primary" className="w-100">
           Registrar Clase
         </Button>
       </Form>
+      {responseMessage && (
+        <Alert variant={responseMessage.type} className="mt-3">
+          {responseMessage.message}
+        </Alert>
+      )}
     </BsCard>
   );
 }

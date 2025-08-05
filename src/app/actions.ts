@@ -150,25 +150,24 @@ export async function registerUser(formData: FormData) {
 export async function registerClass(formData: FormData) {
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
-  const dateTimeString = formData.get('dateTime') as string;
+  // 🚨 Corrección: Aquí tomamos el string que ya incluye la zona horaria de CDMX
+  const dateTimeString = formData.get('dateTime') as string; 
   const capacityString = formData.get('capacity') as string;
 
   if (!name || !description || !dateTimeString || !capacityString) {
-      throw new Error("Todos los campos son obligatorios.");
+    throw new Error("Todos los campos son obligatorios.");
   }
 
-  const [datePart, timePart] = dateTimeString.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hours, minutes] = timePart.split(':').map(Number);
-  const fechaHora = new Date(year, month - 1, day, hours, minutes);
+  // 🚨 Corrección: Creamos el objeto Date directamente del string. Esto asegura que la zona horaria sea la correcta.
+  const fechaHora = new Date(dateTimeString);
 
   if (isNaN(fechaHora.getTime())) {
-      throw new Error("Formato de fecha y hora inválido.");
+    throw new Error("Formato de fecha y hora inválido.");
   }
-  
+    
   const capacity = parseInt(capacityString, 10);
   if (isNaN(capacity) || capacity < 1) {
-      throw new Error("El cupo debe ser un número válido mayor a 0.");
+    throw new Error("El cupo debe ser un número válido mayor a 0.");
   }
 
   // --- Lógica de validación de negocio actualizada ---
@@ -182,31 +181,23 @@ export async function registerClass(formData: FormData) {
   const classHours = fechaHora.getHours();
   const classMinutes = fechaHora.getMinutes();
 
-  // Las clases solo pueden empezar en la hora en punto (:00)
   if (classMinutes !== 0) {
-      throw new Error("La hora de inicio de la clase debe ser una hora en punto (ej. 10:00).");
+    throw new Error("La hora de inicio de la clase debe ser una hora en punto (ej. 10:00).");
   }
 
   let isScheduleValid = false;
   
   switch (dayOfWeek) {
-    // Lunes a Jueves: 6:00 am a 10:00 pm
-    case 1: // Lunes
-    case 2: // Martes
-    case 3: // Miércoles
-    case 4: // Jueves
+    case 1: case 2: case 3: case 4:
       isScheduleValid = classHours >= 6 && classHours < 22;
       break;
-    // Viernes: 6:00 am a 9:00 pm
-    case 5: // Viernes
+    case 5:
       isScheduleValid = classHours >= 6 && classHours < 21;
       break;
-    // Sábado: 6:00 am a 2:00 pm
-    case 6: // Sábado
+    case 6:
       isScheduleValid = classHours >= 6 && classHours < 14;
       break;
-    // Domingo: 7:00 am a 2:00 pm
-    case 0: // Domingo
+    case 0:
       isScheduleValid = classHours >= 7 && classHours < 14;
       break;
     default:
@@ -234,35 +225,12 @@ export async function registerClass(formData: FormData) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
-    // Manejo específico para errores de Prisma, como duplicados (P2002)
     if (isErrorWithCode(error) && error.code === 'P2002') {
         const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
         throw new Error(`Ya existe una clase con este ${target}.`);
     }
     console.error('Error al registrar clase en DB:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al registrar la clase. Inténtalo de nuevo.');
-  }
-}
-/**
- * Obtiene todas las clases de la base de datos.
- * @returns Un array de objetos de clase.
- * @throws Error si hay un problema al obtener las clases.
- */
-export async function getClasses() {
-  try {
-    const classes = await prisma.clase.findMany({
-        orderBy: {
-            fecha_hora: 'asc',
-        }
-    });
-    console.log('Clases obtenidas de DB:', classes);
-    return classes;
-  } catch (error: unknown) {
-    if (isErrorWithRedirect(error)) {
-      throw error;
-    }
-    console.error('Error al obtener clases de DB:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al obtener las clases. Inténtalo de nuevo.');
   }
 }
 
