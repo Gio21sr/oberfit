@@ -1,15 +1,20 @@
-// src/app/login-interno/page.tsx
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Form, Button, Card as BsCard, Alert } from 'react-bootstrap';
+import { Form, Button, Card as BsCard, Alert, InputGroup } from 'react-bootstrap';
 import { signIn } from "next-auth/react";
 import Link from 'next/link';
+import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Importamos los íconos de ojo
 
 export default function InternalLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,7 +44,6 @@ export default function InternalLoginPage() {
   };
 
   return (
-    // Se usa un contenedor similar al de la página de inicio
     <div className="container-fluid d-flex justify-content-center align-items-center py-5 min-vh-100">
       <BsCard className="p-4 shadow-sm text-center" style={{ maxWidth: '400px', margin: 'auto' }}>
         <BsCard.Title as="h2" className="mb-0 fs-1 fw-bold text-dark">
@@ -72,7 +76,21 @@ export default function InternalLoginPage() {
 
           <Form.Group className="mb-4" controlId="formPassword">
             <Form.Label className="d-block text-start fw-bold text-dark">Contraseña</Form.Label>
-            <Form.Control type="password" name="password" placeholder="Contraseña" required />
+            <InputGroup>
+              <Form.Control
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="Contraseña"
+                required
+              />
+              <Button
+                variant="outline-secondary"
+                onClick={togglePasswordVisibility}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </Button>
+            </InputGroup>
           </Form.Group>
 
           <Button variant="dark" type="submit" className="w-100 py-3 fw-bold">

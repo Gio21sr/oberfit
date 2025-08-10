@@ -1,12 +1,12 @@
-// src/components/LoginForm.tsx
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Form, Button, Card as BsCard, Alert } from 'react-bootstrap';
+import { Form, Button, Card as BsCard, Alert, InputGroup } from 'react-bootstrap';
 import { signIn } from "next-auth/react";
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-import { registerUser } from '@/app/actions'; 
+import { registerUser } from '@/app/actions';
 
 interface LoginFormProps {
   currentRole: string;
@@ -16,25 +16,35 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const showRegisterOption = currentRole === 'socio';
   const router = useRouter();
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
   const handleSubmit = async (formData: FormData) => {
     setErrorMessage(null);
-    setSuccessMessage(null); 
+    setSuccessMessage(null);
 
     try {
       if (showRegisterOption && isRegistering) {
         if (formData.get('password') !== formData.get('confirmPassword')) {
-            setErrorMessage("Las contraseñas no coinciden.");
-            return;
+          setErrorMessage("Las contraseñas no coinciden.");
+          return;
         }
-        
-        const result = await registerUser(formData); 
-        
+
+        const result = await registerUser(formData);
+
         if (result?.success) {
-          setSuccessMessage(result.message); 
-          setIsRegistering(false); 
+          setSuccessMessage(result.message);
+          setIsRegistering(false);
         } else {
           setErrorMessage(result?.message || 'Error al registrar el usuario.');
         }
@@ -50,7 +60,7 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
         });
 
         if (result?.error) {
-          setErrorMessage(result.error); 
+          setErrorMessage(result.error);
         } else if (result?.ok) {
           router.push(`/${currentRole}`);
         }
@@ -85,7 +95,7 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
           <Form.Label className="d-block text-start fw-bold text-dark">Usuario</Form.Label>
           <Form.Control type="text" name="username" placeholder="Usuario" required />
         </Form.Group>
-        
+
         {isRegistering && showRegisterOption && (
           <Form.Group className="mb-3" controlId="formEmail">
             <Form.Label className="d-block text-start fw-bold text-dark">Correo Electrónico</Form.Label>
@@ -93,15 +103,45 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
           </Form.Group>
         )}
 
+        {/* Campo de Contraseña con botón de visibilidad */}
         <Form.Group className="mb-3" controlId="formPassword">
           <Form.Label className="d-block text-start fw-bold text-dark">Contraseña</Form.Label>
-          <Form.Control type="password" name="password" placeholder="Contraseña" required />
+          <InputGroup>
+            <Form.Control
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              placeholder="Contraseña"
+              required
+            />
+            <Button
+              variant="outline-secondary"
+              onClick={togglePasswordVisibility}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </Button>
+          </InputGroup>
         </Form.Group>
 
+        {/* Campo de Confirmar Contraseña con botón de visibilidad (solo en modo registro) */}
         {isRegistering && showRegisterOption && (
           <Form.Group className="mb-4" controlId="formConfirmPassword">
             <Form.Label className="d-block text-start fw-bold text-dark">Confirmar Contraseña</Form.Label>
-            <Form.Control type="password" name="confirmPassword" placeholder="Confirmar Contraseña" required />
+            <InputGroup>
+              <Form.Control
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                placeholder="Confirmar Contraseña"
+                required
+              />
+              <Button
+                variant="outline-secondary"
+                onClick={toggleConfirmPasswordVisibility}
+                aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </Button>
+            </InputGroup>
           </Form.Group>
         )}
 
