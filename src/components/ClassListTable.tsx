@@ -89,9 +89,21 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
 
   const handleEditClick = (clase: Clase) => {
     setCurrentClass(clase);
-    const localDate = new Date(clase.fecha_hora);
-    setEditDate(getLocalISODate(localDate));
-    setEditTime(getLocalTime(localDate));
+
+    // ✅ SOLUCIÓN: Convertir la fecha UTC a la hora local de CDMX de forma explícita.
+    // Esto evita que el navegador interprete incorrectamente la hora.
+    const dateObj = new Date(clase.fecha_hora);
+    const cdmxOffset = -6 * 60; // Desfase de CDMX en minutos
+    const browserOffset = dateObj.getTimezoneOffset();
+    const adjustedOffset = (browserOffset + cdmxOffset) * 60000; // Diferencia total en milisegundos
+
+    const localDate = new Date(dateObj.getTime() - adjustedOffset);
+
+    const localISO = localDate.toISOString().substring(0, 10);
+    const localTime = localDate.toISOString().substring(11, 16);
+    
+    setEditDate(localISO);
+    setEditTime(localTime);
     setShowEditModal(true);
   };
   
@@ -119,7 +131,7 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
     const formData = new FormData(event.currentTarget);
     const date = formData.get('date') as string;
     const time = formData.get('time') as string;
-    const dateTime = `${date}T${time}`;
+    const dateTime = `${date}T${time}:00`;
     
     formData.set('dateTime', dateTime);
     formData.append('id_clase', currentClass.id_clase.toString());
