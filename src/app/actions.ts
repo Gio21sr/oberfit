@@ -473,6 +473,7 @@ export async function deleteClass(formData: FormData) {
  */
 export async function registerUserByAdmin(formData: FormData) {
   const username = formData.get('username') as string;
+  const fullName = formData.get('fullName') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
   const confirmPassword = formData.get('confirmPassword') as string;
@@ -508,6 +509,7 @@ export async function registerUserByAdmin(formData: FormData) {
     const newUser = await prisma.user.create({
       data: {
         name: username,
+        fullName: fullName,
         email: email,
         password: hashedPassword,
         role: role,

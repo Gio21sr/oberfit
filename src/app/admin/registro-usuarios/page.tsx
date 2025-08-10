@@ -48,6 +48,11 @@ export default function RegisterUserByAdminPage() {
 
         {/* Formulario de Bootstrap. El atributo 'action' apunta a la Server Action. */}
         <Form action={handleSubmit}>
+          {/* Campo para el Nombre de Completo*/}
+          <Form.Group className="mb-3" controlId="formFullName">
+            <Form.Label className="d-block text-start fw-bold text-dark">Nombre Completo</Form.Label>
+            <Form.Control type="text" name="fullName" placeholder="Ingrese su nombre completo" required />
+          </Form.Group>
           {/* Campo para el Nombre de Usuario */}
           <Form.Group className="mb-3" controlId="formUsername">
             <Form.Label className="d-block text-start fw-bold text-dark">Nombre de Usuario</Form.Label>
@@ -79,7 +84,7 @@ export default function RegisterUserByAdminPage() {
               <option value="empleado">Empleado</option>
               <option value="socio">Socio</option>
             </Form.Select>
-          </Form.Group>
+          </Form.Group> 
 
           {/* Botón de envío del formulario */}
           <Button variant="primary" type="submit" className="w-100 py-2 fw-bold">
