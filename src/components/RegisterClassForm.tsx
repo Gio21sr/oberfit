@@ -84,16 +84,19 @@ export default function RegisterClassForm() {
     const localDate = new Date(`${date}T${time}:00`);
     formData.append('dateTime', localDate.toISOString());
 
-    try {
-      await registerClass(formData);
+    // MODIFICACIÓN: Se elimina el try/catch y se revisa la propiedad 'success'
+    const result = await registerClass(formData);
+
+    if (result.success) {
       setResponseMessage({ 
         type: 'success', 
-        message: 'Clase registrada con éxito.' 
+        message: result.message 
       });
-    } catch (err: any) {
+      // Puedes resetear el formulario aquí si lo deseas
+    } else {
       setResponseMessage({ 
         type: 'danger', 
-        message: err.message || 'Error al registrar la clase.' 
+        message: result.message 
       });
     }
   };

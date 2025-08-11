@@ -153,9 +153,8 @@ export async function registerUser(formData: FormData) {
 
 /**
  * Registra una nueva clase en la base de datos `clases`.
- * @param formData Objeto FormData con 'name', 'description', 'dateTime', 'capacity'.
- * @returns El objeto de la clase creada.
- * @throws Error si los datos son inválidos o hay un problema en la DB.
+ * @param formData Objeto FormData con 'className', 'description', 'dateTime', 'capacity'.
+ * @returns Un objeto que indica el éxito o fracaso de la operación y un mensaje.
  */
 export async function registerClass(formData: FormData) {
   const name = formData.get('className') as string;
@@ -163,24 +162,23 @@ export async function registerClass(formData: FormData) {
   const dateTimeString = formData.get('dateTime') as string;
   const capacityString = formData.get('capacity') as string;
 
-  // Validaciones básicas
+  // Modificación: Se retorna un objeto en lugar de lanzar Error
   if (!name || !description || !dateTimeString || !capacityString) {
-    throw new Error("Todos los campos son obligatorios.");
+    return { success: false, message: "Todos los campos son obligatorios." };
   }
-
   if (name.length > 100) {
-    throw new Error("El nombre de la clase no puede exceder 100 caracteres.");
+    return { success: false, message: "El nombre de la clase no puede exceder 100 caracteres." };
   }
 
   // Procesamiento de fecha (viene en UTC desde el frontend)
   const fechaHora = new Date(dateTimeString);
   if (isNaN(fechaHora.getTime())) {
-    throw new Error("Formato de fecha y hora inválido.");
+    return { success: false, message: "Formato de fecha y hora inválido." };
   }
 
   const capacity = parseInt(capacityString, 10);
   if (isNaN(capacity) || capacity < 1) {
-    throw new Error("El cupo debe ser un número válido mayor a 0.");
+    return { success: false, message: "El cupo debe ser un número válido mayor a 0." };
   }
 
   // Validación de fecha/hora (convertir a CDMX)
@@ -189,7 +187,7 @@ export async function registerClass(formData: FormData) {
   const nowCDMX = new Date(Date.now() + cdmxOffset);
 
   if (fechaHoraCDMX < nowCDMX) {
-    throw new Error("No se pueden registrar clases en fechas pasadas.");
+    return { success: false, message: "No se pueden registrar clases en fechas pasadas." };
   }
 
   const dayOfWeek = fechaHoraCDMX.getDay();
@@ -197,7 +195,7 @@ export async function registerClass(formData: FormData) {
   const classMinutes = fechaHoraCDMX.getMinutes();
 
   if (classMinutes !== 0) {
-    throw new Error("La hora de inicio debe ser en punto (ej. 10:00).");
+    return { success: false, message: "La hora de inicio debe ser en punto (ej. 10:00)." };
   }
 
   // Validación de horario del gimnasio (CDMX)
@@ -220,12 +218,9 @@ export async function registerClass(formData: FormData) {
   }
 
   if (!isScheduleValid) {
-    throw new Error("El horario seleccionado no está dentro del horario de operación del gimnasio.");
+    return { success: false, message: "El horario seleccionado no está dentro del horario de operación del gimnasio." };
   }
 
-  // ---------------------------------------------------------------------
-  // ** NUEVA VALIDACIÓN: Verificar si ya existe una clase en este horario **
-  // ---------------------------------------------------------------------
   const existingClass = await prisma.clase.findFirst({
     where: {
       fecha_hora: fechaHora,
@@ -233,9 +228,8 @@ export async function registerClass(formData: FormData) {
   });
 
   if (existingClass) {
-    throw new Error("Ya existe una clase programada para esta fecha y hora. Por favor, selecciona otro horario.");
+    return { success: false, message: "Ya existe una clase programada para esta fecha y hora. Por favor, selecciona otro horario." };
   }
-  // ---------------------------------------------------------------------
 
   try {
     const newClass = await prisma.clase.create({
@@ -249,30 +243,30 @@ export async function registerClass(formData: FormData) {
     });
 
     console.log('Clase registrada exitosamente:', newClass);
-    return newClass;
+    return { success: true, message: "Clase registrada con éxito." };
 
   } catch (error: unknown) {
-    console.error('Error al registrar clase:', error);
+    if (isErrorWithRedirect(error)) {
+      throw error;
+    }
     
     if (isErrorWithCode(error)) {
       if (error.code === 'P2002') {
         const target = error.meta?.target;
         if (Array.isArray(target) && target.includes('nombre_clase')) {
-          throw new Error("Ya existe una clase con este nombre.");
+          return { success: false, message: "Ya existe una clase con este nombre." };
         }
-        throw new Error("Error de duplicado en la base de datos.");
+        return { success: false, message: "Error de duplicado en la base de datos." };
       }
-      
       if (error.code === 'P2025') {
-        throw new Error("Operación rechazada por validación de base de datos.");
+        return { success: false, message: "Operación rechazada por validación de base de datos." };
       }
     }
 
-    throw new Error(
-      isErrorWithMessage(error) 
-        ? error.message 
-        : "Error desconocido al registrar la clase. Por favor intente nuevamente."
-    );
+    return {
+      success: false,
+      message: isErrorWithMessage(error) ? error.message : "Error desconocido al registrar la clase. Por favor intente nuevamente."
+    };
   }
 }
 
