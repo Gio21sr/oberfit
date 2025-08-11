@@ -13,7 +13,6 @@ interface ClaseSelect {
   cupo: number;
 }
 
-// Interfaz para los detalles de la inscripción a mostrar
 interface ConfirmationDetails {
     id: number;
     nombre: string;
@@ -35,8 +34,7 @@ export default function VisitanteInscriptionPage() {
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [errorClasses, setErrorClasses] = useState<string | null>(null);
   const [responseMessage, setResponseMessage] = useState<{ type: 'success' | 'danger', message: string } | null>(null);
-  const [confirmation, setConfirmation] = useState<ConfirmationDetails | null>(null); // Estado para la confirmación
-
+  const [confirmation, setConfirmation] = useState<ConfirmationDetails | null>(null);
 
   useEffect(() => {
     async function fetchClassesForSelect() {
@@ -44,11 +42,16 @@ export default function VisitanteInscriptionPage() {
         setLoadingClasses(true);
         setErrorClasses(null);
         const fetchedClasses = await getClasses();
-        const processedClasses = fetchedClasses.map((clase: ClaseSelect) => ({
-          ...clase,
-          fecha_hora: new Date(clase.fecha_hora),
-        }));
-        setClasses(processedClasses.filter((clase: ClaseSelect)=> clase.cupo > 0));
+        
+        if (fetchedClasses.success && fetchedClasses.classes) {
+          const processedClasses = fetchedClasses.classes.map((clase) => ({
+            ...clase,
+            fecha_hora: new Date(clase.fecha_hora),
+          }));
+          setClasses(processedClasses.filter(clase => clase.cupo > 0));
+        } else {
+          throw new Error(fetchedClasses.message || "No se pudieron cargar las clases");
+        }
       } catch (err: any) {
         console.error("Error al cargar clases para inscripción de visitante:", err);
         setErrorClasses(err.message || "No se pudieron cargar las clases para inscripción.");
@@ -61,7 +64,7 @@ export default function VisitanteInscriptionPage() {
 
   const handleSubmit = async (formData: FormData) => {
     setResponseMessage(null);
-    setConfirmation(null); // Limpiar confirmación anterior
+    setConfirmation(null);
     try {
       const selectedClassId = parseInt(formData.get('claseId') as string);
       if (isNaN(selectedClassId)) {
@@ -76,17 +79,14 @@ export default function VisitanteInscriptionPage() {
       const result = await registerVisitorInscription(formData);
 
       if (result.success && result.inscriptionDetails) {
-          setConfirmation(result.inscriptionDetails); // Guarda los detalles para mostrar
+          setConfirmation(result.inscriptionDetails);
           setResponseMessage({ type: 'success', message: '¡Inscripción exitosa! Detalles a continuación.' });
 
-          // Limpiar el formulario después del envío exitoso
+          // Limpiar el formulario
           (document.getElementById('formVisitorName') as HTMLInputElement).value = '';
           (document.getElementById('formVisitorEmail') as HTMLInputElement).value = '';
           (document.getElementById('formVisitorClassId') as HTMLSelectElement).value = '';
           (document.getElementById('formVisitorMetodoPago') as HTMLSelectElement).value = 'caja';
-
-          // Opcional: Recargar las clases para reflejar el cupo actualizado si el usuario se queda en la página
-          // fetchClasses(); 
 
       } else {
           throw new Error("Inscripción exitosa, pero hubo un problema al confirmar. Contacta soporte.");
@@ -110,7 +110,6 @@ export default function VisitanteInscriptionPage() {
           </Alert>
         )}
 
-        {/* Panel de confirmación después de la inscripción exitosa */}
         {confirmation ? (
             <div className="confirmation-panel text-start my-4 p-3 border rounded bg-light">
                 <h3 className="text-success mb-3">¡Inscripción Confirmada!</h3>
@@ -134,7 +133,7 @@ export default function VisitanteInscriptionPage() {
                     Realizar otra inscripción
                 </Button>
             </div>
-        ) : ( // Mostrar el formulario si no hay confirmación
+        ) : (
             <>
             {loadingClasses ? (
               <div className="d-flex justify-content-center my-4">
@@ -184,7 +183,7 @@ export default function VisitanteInscriptionPage() {
               </Form>
             )}
             </>
-        )} {/* Fin del renderizado condicional */}
+        )}
       </BsCard>
     </div>
   );
