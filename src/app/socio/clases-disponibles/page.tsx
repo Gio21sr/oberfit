@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { Table, Spinner, Alert, Button, Modal, Form } from 'react-bootstrap';
-import { getClasses, enrollInClass } from '@/app/actions'; 
+import { getClasses, enrollInClass } from '@/app/actions';
 import { formatDbDateTimeToLocal } from '@/utils/formatDate';
-import { useSidebar } from '@/lib/SidebarContext'; 
-import { useSession } from 'next-auth/react'; 
+import { useSidebar } from '@/lib/SidebarContext';
+import { useSession } from 'next-auth/react';
 
 interface Clase {
   id_clase: number;
@@ -14,7 +14,7 @@ interface Clase {
   descripcion: string;
   fecha_hora: Date;
   cupo: number;
-  capacidad_maxima: number | null; // <-- ¡CORREGIDO! Puede ser number o null
+  capacidad_maxima: number | null;
 }
 
 export default function SocioClassesPage() {
@@ -24,21 +24,28 @@ export default function SocioClassesPage() {
   const [responseMessage, setResponseMessage] = useState<{ type: 'success' | 'danger', message: string } | null>(null);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Clase | null>(null);
-  const [socioId, setSocioId] = useState<number | null>(null); // ID del socio logueado
+  const [socioId, setSocioId] = useState<number | null>(null);
 
   const { setCurrentRoleMenu } = useSidebar();
-  const { data: session, status } = useSession(); // Usa useSession para obtener el estado de autenticación
+  const { data: session, status } = useSession();
 
   const fetchClasses = async () => {
     try {
       setLoading(true);
       setError(null);
-      const fetchedClasses = await getClasses();
-      const processedClasses = fetchedClasses.map((clase: Clase) => ({
-        ...clase,
-        fecha_hora: new Date(clase.fecha_hora),
-      }));
-      setClasses(processedClasses.filter((clase: Clase)=> clase.cupo > 0)); // Solo clases con cupo disponible
+      const result = await getClasses();
+      if (result.success) {
+        const now = new Date();
+        const processedClasses = result.classes
+            .filter((clase: Clase) => clase.cupo > 0 && new Date(clase.fecha_hora) > now)
+            .map((clase: Clase) => ({
+              ...clase,
+              fecha_hora: new Date(clase.fecha_hora),
+            }));
+        setClasses(processedClasses);
+      } else {
+        setError(result.message);
+      }
     } catch (err: any) {
       console.error("Error al cargar clases:", err);
       setError(err.message || "No se pudieron cargar las clases.");
@@ -48,20 +55,19 @@ export default function SocioClassesPage() {
   };
 
   useEffect(() => {
-    setCurrentRoleMenu('socio'); 
+    setCurrentRoleMenu('socio');
 
-    // Obtener el ID del socio de la sesión de NextAuth.js
     if (status === 'authenticated' && session?.user?.id) {
       const userId = parseInt(session.user.id as string);
       setSocioId(userId);
-      fetchClasses(); // Cargar clases una vez que el ID del socio esté disponible
+      fetchClasses();
     } else if (status === 'unauthenticated') {
       setError("Debe iniciar sesión como socio para ver las clases disponibles.");
       setLoading(false);
     } else if (status === 'loading') {
-      setLoading(true); // Mostrar carga mientras la sesión se autentica
+      setLoading(true);
     }
-  }, [session, status, setCurrentRoleMenu]); // Dependencias
+  }, [session, status, setCurrentRoleMenu]);
 
   const handleEnrollClick = (clase: Clase) => {
     if (socioId === null) {
@@ -79,20 +85,20 @@ export default function SocioClassesPage() {
 
     const formData = new FormData(event.currentTarget);
     formData.append('claseId', selectedClass.id_clase.toString());
-    formData.append('userId', socioId.toString()); // ID del socio desde la sesión
+    formData.append('userId', socioId.toString());
 
-    try {
-      await enrollInClass(formData);
-      setResponseMessage({ type: 'success', message: '¡Inscripción exitosa! Tu clase restante ha sido descontada.' });
+    const result = await enrollInClass(formData);
+
+    if (result.success) {
+      setResponseMessage({ type: 'success', message: result.message });
       setShowEnrollModal(false);
-      fetchClasses(); // Recargar la lista de clases para reflejar el cupo
-      // NOTA: Para actualizar el contador en /socio, necesitarías redirigir o refetch la sesión/datos del socio.
-      // router.push('/socio'); // Una opción es redirigir, pero el usuario se queda en la página actual.
-    } catch (err: any) {
-      console.error("Error al inscribir:", err);
-      setResponseMessage({ type: 'danger', message: err.message || 'Error al inscribirte en la clase.' });
+      fetchClasses();
+    } else {
+      setResponseMessage({ type: 'danger', message: result.message });
     }
   };
+
+  const now = new Date();
 
   return (
     <div className="role-page-content">
@@ -142,8 +148,12 @@ export default function SocioClassesPage() {
                 <td>{clase.cupo}</td>
                 <td>{clase.capacidad_maxima !== null ? clase.capacidad_maxima : 'N/A'}</td>
                 <td>
-                  <Button variant="success" size="sm" onClick={() => handleEnrollClick(clase)}
-                          disabled={clase.cupo <= 0}>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={() => handleEnrollClick(clase)}
+                    disabled={clase.cupo <= 0 || clase.fecha_hora < now}
+                  >
                     Inscribirme
                   </Button>
                 </td>
@@ -153,7 +163,6 @@ export default function SocioClassesPage() {
         </Table>
       )}
 
-      {/* Modal para Inscripción */}
       <Modal show={showEnrollModal} onHide={() => setShowEnrollModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Inscribirte en {selectedClass?.nombre_clase}</Modal.Title>
@@ -162,7 +171,6 @@ export default function SocioClassesPage() {
           {selectedClass && (
             <Form onSubmit={handleEnrollSubmit}>
               <p>Confirma tu inscripción a **{selectedClass.nombre_clase}** el **{formatDbDateTimeToLocal(selectedClass.fecha_hora)}**.</p>
-              {/* El campo metodoPago se eliminó para socios en el diseño */}
               <Button variant="primary" type="submit" className="w-100">
                 Confirmar Inscripción
               </Button>

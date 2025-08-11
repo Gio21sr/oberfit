@@ -620,17 +620,17 @@ export async function deleteUserByAdmin(formData: FormData) {
 }
 
 /**
+ * 💡 MODIFICADO: Ahora devuelve un objeto de resultado para todas las validaciones.
  * Inscribe a un socio en una clase.
  * @param formData Objeto FormData con 'claseId', 'userId'.
- * @returns El objeto de la inscripción creada.
- * @throws Error si el cupo es insuficiente, el socio no tiene clases restantes, o ya está inscrito.
+ * @returns Un objeto con `success: boolean`, `message: string` y el objeto de la inscripción creada.
  */
 export async function enrollInClass(formData: FormData) {
   const claseId = parseInt(formData.get('claseId') as string);
   const userId = parseInt(formData.get('userId') as string);
 
   if (isNaN(claseId) || isNaN(userId)) {
-    throw new Error("Datos de inscripción incompletos o inválidos.");
+    return { success: false, message: "Datos de inscripción incompletos o inválidos." };
   }
 
   try {
@@ -644,10 +644,16 @@ export async function enrollInClass(formData: FormData) {
       });
 
       if (!clase) {
-        throw new Error("La clase no existe.");
+        return { success: false, message: "La clase no existe." };
       }
+      // 💡 NUEVA VALIDACIÓN: No permitir inscripción a clases pasadas.
+      const now = new Date();
+      if (clase.fecha_hora < now) {
+        return { success: false, message: "No puedes inscribirte a una clase que ya ha pasado." };
+      }
+
       if (!socio || socio.role !== 'socio' || !socio.es_socio) {
-        throw new Error("El usuario no es un socio válido para inscribirse.");
+        return { success: false, message: "El usuario no es un socio válido para inscribirse." };
       }
 
       const existingInscription = await tx.inscripcion.findFirst({
@@ -657,23 +663,20 @@ export async function enrollInClass(formData: FormData) {
         },
       });
       if (existingInscription) {
-        throw new Error("Ya estás inscrito en esta clase.");
+        return { success: false, message: "Ya estás inscrito en esta clase." };
       }
-
-      const now = new Date();
+      
       let currentClasesRestantes = socio.clases_restantes || 0;
-
       if (!socio.last_reset_month || socio.last_reset_month.getMonth() !== now.getMonth() || socio.last_reset_month.getFullYear() !== now.getFullYear()) {
         currentClasesRestantes = 8;
         console.log(`Reinicio mensual para socio ${socio.name}. Clases restantes: 8.`);
       }
 
       if (clase.cupo <= 0) {
-        throw new Error("No hay cupo disponible para esta clase.");
+        return { success: false, message: "No hay cupo disponible para esta clase." };
       }
-
       if (currentClasesRestantes <= 0) {
-        throw new Error("No tienes clases restantes para inscribirte este mes.");
+        return { success: false, message: "No tienes clases restantes para inscribirte este mes." };
       }
 
       const inscripcion = await tx.inscripcion.create({
@@ -697,17 +700,19 @@ export async function enrollInClass(formData: FormData) {
         },
       });
 
-      return inscripcion;
+      return { success: true, message: "Inscripción creada con éxito.", inscription: inscripcion };
     });
 
     console.log('Inscripción creada con éxito:', result);
-    return { success: true, inscription: result };
+    return result;
+
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'message' in error && error.message === 'NEXT_REDIRECT') {
+    if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error en inscripción:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al inscribir a la clase.');
+    // 💡 MODIFICADO: Retorna un objeto en lugar de lanzar un nuevo Error.
+    return { success: false, message: isErrorWithMessage(error) ? error.message : 'Error al inscribir a la clase. Por favor, intenta de nuevo.' };
   }
 }
 
