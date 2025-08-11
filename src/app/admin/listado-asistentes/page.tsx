@@ -3,12 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { Form, Button, Card, Table, Spinner, Alert } from 'react-bootstrap';
-// Importación correcta de las funciones
-import { getClasses, getAttendeesByClass } from '@/app/actions'; 
+import { getClasses, getAttendeesByClass } from '@/app/actions';
 import { formatDbDateTimeToLocal } from '@/utils/formatDate';
 import { useSidebar } from '@/lib/SidebarContext';
 
-// Define las interfaces para tipado más seguro
 interface ClaseSelect {
     id_clase: number;
     nombre_clase: string;
@@ -38,10 +36,9 @@ export default function AdminAttendancePage() {
             setLoadingClasses(true);
             setErrorClasses(null);
             try {
-                // ✅ CORREGIDO: Maneja la respuesta como un objeto con propiedad 'success'
                 const result = await getClasses();
                 if (result.success) {
-                    const processedClasses = result.classes.map((clase: any) => ({
+                    const processedClasses = (result.classes ?? []).map((clase: any) => ({
                         id_clase: clase.id_clase,
                         nombre_clase: clase.nombre_clase,
                         fecha_hora: new Date(clase.fecha_hora),
@@ -75,7 +72,6 @@ export default function AdminAttendancePage() {
         setLoadingAssistants(true);
         setErrorAssistants(null);
         try {
-            // ✅ CORREGIDO: Llama a la función getAttendeesByClass, que devuelve un array
             const fetchedAttendees = await getAttendeesByClass(selectedClassId);
             setAssistants(fetchedAttendees);
         } catch (err: any) {
