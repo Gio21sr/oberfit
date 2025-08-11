@@ -334,10 +334,13 @@ export async function getClasses() {
 /**
  * Actualiza los detalles de una clase existente en la base de datos.
  * @param formData Objeto FormData con id_clase, name, description, dateTime, capacity, capacidadMaxima.
- * @returns El objeto de la clase actualizada.
- * @throws Error si los datos son inválidos o hay un problema en la DB.
+ * @returns Un objeto con {success: boolean, message: string, class?: Clase}
  */
-export async function updateClass(formData: FormData) {
+export async function updateClass(formData: FormData): Promise<{
+  success: boolean;
+  message: string;
+  class?: Prisma.Clase;
+}> {
   const id_clase = parseInt(formData.get('id_clase') as string);
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
@@ -349,17 +352,26 @@ export async function updateClass(formData: FormData) {
   if (isNaN(id_clase) || !name || !description || !dateTimeString || 
       isNaN(newCapacity) || newCapacity < 0 || 
       isNaN(newCapacidadMaxima) || newCapacidadMaxima < 1) {
-    throw new Error("Todos los campos son requeridos y deben ser válidos.");
+    return { 
+      success: false, 
+      message: "Todos los campos son requeridos y deben ser válidos." 
+    };
   }
 
   if (newCapacity > newCapacidadMaxima) {
-    throw new Error("El cupo disponible no puede ser mayor que la capacidad máxima.");
+    return { 
+      success: false, 
+      message: "El cupo disponible no puede ser mayor que la capacidad máxima." 
+    };
   }
 
   // Procesamiento de fecha (UTC)
   const fechaHora = new Date(dateTimeString);
   if (isNaN(fechaHora.getTime())) {
-    throw new Error("Formato de fecha y hora inválido.");
+    return { 
+      success: false, 
+      message: "Formato de fecha y hora inválido." 
+    };
   }
 
   // Validación de fecha/hora (convertir a CDMX)
@@ -368,7 +380,10 @@ export async function updateClass(formData: FormData) {
   const nowCDMX = new Date(Date.now() + cdmxOffset);
 
   if (fechaHoraCDMX < nowCDMX) {
-    throw new Error("No se pueden programar clases en fechas pasadas.");
+    return { 
+      success: false, 
+      message: "No se pueden programar clases en fechas pasadas." 
+    };
   }
 
   const dayOfWeek = fechaHoraCDMX.getDay();
@@ -376,7 +391,10 @@ export async function updateClass(formData: FormData) {
   const classMinutes = fechaHoraCDMX.getMinutes();
 
   if (classMinutes !== 0) {
-    throw new Error("La hora de inicio debe ser en punto (ej. 10:00).");
+    return { 
+      success: false, 
+      message: "La hora de inicio debe ser en punto (ej. 10:00)." 
+    };
   }
 
   // Validación de horario del gimnasio (CDMX)
@@ -399,10 +417,30 @@ export async function updateClass(formData: FormData) {
   }
 
   if (!isScheduleValid) {
-    throw new Error("El horario seleccionado no está dentro del horario de operación del gimnasio.");
+    return { 
+      success: false, 
+      message: "El horario seleccionado no está dentro del horario de operación del gimnasio." 
+    };
   }
 
   try {
+    // Verificar si ya existe una clase con el mismo nombre (excepto esta)
+    const existingClassWithSameName = await prisma.clase.findFirst({
+      where: {
+        AND: [
+          { nombre_clase: name },
+          { id_clase: { not: id_clase } }
+        ]
+      }
+    });
+
+    if (existingClassWithSameName) {
+      return { 
+        success: false, 
+        message: "Ya existe una clase con este nombre." 
+      };
+    }
+
     const updatedClass = await prisma.clase.update({
       where: { id_clase },
       data: {
@@ -415,32 +453,47 @@ export async function updateClass(formData: FormData) {
     });
 
     console.log('Clase actualizada exitosamente:', updatedClass);
-    return updatedClass;
+    return { 
+      success: true, 
+      message: "Clase actualizada con éxito.",
+      class: updatedClass
+    };
 
   } catch (error: unknown) {
+    if (isErrorWithRedirect(error)) {
+      throw error;
+    }
+
     console.error('Error al actualizar clase:', error);
     
     if (isErrorWithCode(error)) {
       switch (error.code) {
         case 'P2025':
-          throw new Error("La clase que intentas actualizar no existe.");
+          return { 
+            success: false, 
+            message: "La clase que intentas actualizar no existe." 
+          };
         case 'P2002':
-          throw new Error("Ya existe una clase con este nombre.");
+          return { 
+            success: false, 
+            message: "Error de duplicado en la base de datos." 
+          };
         case 'P2003':
-          throw new Error("No se puede actualizar debido a restricciones de base de datos.");
-        default:
-          throw new Error("Error de base de datos al actualizar la clase.");
+          return { 
+            success: false, 
+            message: "No se puede actualizar debido a restricciones de base de datos." 
+          };
       }
     }
 
-    throw new Error(
-      isErrorWithMessage(error)
-        ? error.message
+    return {
+      success: false,
+      message: isErrorWithMessage(error) 
+        ? error.message 
         : "Error desconocido al actualizar la clase. Por favor intente nuevamente."
-    );
+    };
   }
 }
-
 /**
  * Elimina una clase de la base de datos de forma definitiva.
  * Elimina primero todas las inscripciones asociadas y luego la clase,
