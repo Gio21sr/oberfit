@@ -1,6 +1,6 @@
 // src/app/admin/registro-usuarios/page.tsx
 "use client"; // Este formulario necesita interactividad del cliente
-
+ 
 import { useState } from 'react';
 // Importa componentes de React-Bootstrap para el formulario
 import { Form, Button, Card as BsCard, Alert } from 'react-bootstrap'; 

@@ -51,6 +51,18 @@ function isErrorWithRedirect(error: unknown): error is ErrorWithRedirect {
     (error as any).message === 'NEXT_REDIRECT'
   );
 }
+// Añade esta interfaz con las demás interfaces
+interface User {
+  id: number;
+  name: string | null;
+  fullName: string | null;
+  email: string | null;
+  password: string | null;
+  role: string | null;
+  es_socio: boolean | null;
+  clases_restantes: number | null;
+  last_reset_month: Date | null;
+}
 
 interface VisitorInscriptionData {
   id: number;
@@ -1110,6 +1122,76 @@ export async function updateUser(formData: FormData): Promise<{success: boolean;
     return { 
       success: false, 
       message: isErrorWithMessage(error) ? error.message : 'Error desconocido al actualizar el usuario.' 
+    };
+  }
+}
+/**
+ * Actualiza la contraseña de un usuario (socio o empleado).
+ * @param formData Objeto FormData con 'currentPassword', 'newPassword', 'confirmNewPassword'.
+ * @returns Un objeto con `success: boolean` y un `message: string`.
+ */
+export async function updatePassword(formData: FormData): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.user || !session.user.email) {
+    return { success: false, message: "No está autenticado para realizar esta acción." };
+  }
+
+  const currentPassword = formData.get('currentPassword') as string;
+  const newPassword = formData.get('newPassword') as string;
+  const confirmNewPassword = formData.get('confirmNewPassword') as string;
+
+  // Validaciones básicas
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    return { success: false, message: "Todos los campos son obligatorios." };
+  }
+  if (newPassword !== confirmNewPassword) {
+    return { success: false, message: "La nueva contraseña y su confirmación no coinciden." };
+  }
+  if (newPassword.length < 8) {
+    return { success: false, message: "La nueva contraseña debe tener al menos 8 caracteres." };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return { success: false, message: "Usuario no encontrado." };
+    }
+
+    if (!user.password) {
+      return { success: false, message: "No se encontró una contraseña actual para este usuario." };
+    }
+
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+      return { success: false, message: "La contraseña actual es incorrecta." };
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedNewPassword },
+    });
+
+    console.log(`Contraseña del usuario ${user.name} actualizada con éxito.`);
+    return { success: true, message: "Contraseña actualizada exitosamente." };
+
+  } catch (error: unknown) {
+    if (isErrorWithRedirect(error)) {
+      throw error;
+    }
+    
+    console.error('Error al actualizar la contraseña:', error);
+    return { 
+      success: false, 
+      message: isErrorWithMessage(error) ? error.message : "Ocurrió un error inesperado al actualizar la contraseña. Por favor, inténtalo de nuevo." 
     };
   }
 }

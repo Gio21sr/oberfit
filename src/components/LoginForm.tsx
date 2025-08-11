@@ -79,7 +79,7 @@ export default function LoginForm({ currentRole }: LoginFormProps) {
           ? 'Registro de Nuevo Socio'
           : 'Inicio de Sesión'}
       </BsCard.Text>
-
+ 
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
       {successMessage && <Alert variant="success">{successMessage}</Alert>}
 
