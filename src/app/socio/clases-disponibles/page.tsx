@@ -36,12 +36,12 @@ export default function SocioClassesPage() {
       const result = await getClasses();
       if (result.success) {
         const now = new Date();
-        const processedClasses = result.classes
-            .filter((clase: Clase) => clase.cupo > 0 && new Date(clase.fecha_hora) > now)
-            .map((clase: Clase) => ({
-              ...clase,
-              fecha_hora: new Date(clase.fecha_hora),
-            }));
+        const processedClasses = (result.classes ?? [])
+          .filter((clase: Clase) => clase.cupo > 0 && new Date(clase.fecha_hora) > now)
+          .map((clase: Clase) => ({
+            ...clase,
+            fecha_hora: new Date(clase.fecha_hora),
+          }));
         setClasses(processedClasses);
       } else {
         setError(result.message);
@@ -113,71 +113,4 @@ export default function SocioClassesPage() {
 
       {loading || status === 'loading' ? (
         <div className="d-flex justify-content-center my-4">
-          <Spinner animation="border" role="status">
-            <span className="visually-hidden">Cargando clases...</span>
-          </Spinner>
-        </div>
-      ) : error || status === 'unauthenticated' ? (
-        <Alert variant="danger" className="my-4">
-          {error || "Acceso denegado. Por favor, inicie sesión como socio."}
-        </Alert>
-      ) : classes.length === 0 ? (
-        <Alert variant="info" className="my-4">
-          No hay clases disponibles en este momento.
-        </Alert>
-      ) : (
-        <Table striped bordered hover responsive className="my-4">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Descripción</th>
-              <th>Fecha y Hora</th>
-              <th>Cupo</th>
-              <th>Capacidad Máx.</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {classes.map((clase) => (
-              <tr key={clase.id_clase}>
-                <td>{clase.id_clase}</td>
-                <td>{clase.nombre_clase}</td>
-                <td>{clase.descripcion}</td>
-                <td>{formatDbDateTimeToLocal(clase.fecha_hora)}</td>
-                <td>{clase.cupo}</td>
-                <td>{clase.capacidad_maxima !== null ? clase.capacidad_maxima : 'N/A'}</td>
-                <td>
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleEnrollClick(clase)}
-                    disabled={clase.cupo <= 0 || clase.fecha_hora < now}
-                  >
-                    Inscribirme
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-
-      <Modal show={showEnrollModal} onHide={() => setShowEnrollModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Inscribirte en {selectedClass?.nombre_clase}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedClass && (
-            <Form onSubmit={handleEnrollSubmit}>
-              <p>Confirma tu inscripción a **{selectedClass.nombre_clase}** el **{formatDbDateTimeToLocal(selectedClass.fecha_hora)}**.</p>
-              <Button variant="primary" type="submit" className="w-100">
-                Confirmar Inscripción
-              </Button>
-            </Form>
-          )}
-        </Modal.Body>
-      </Modal>
-    </div>
-  );
-}
+          <Spinner animation="border" role="st
