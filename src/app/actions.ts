@@ -5,6 +5,8 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 interface ErrorWithMessage extends Error {
   message: string;
@@ -918,5 +920,62 @@ export async function getAttendeesByClass(classId: number) {
     }
     console.error('Error al obtener asistentes por clase:', error);
     throw new Error((error as Error).message || 'Error al obtener el listado de asistentes.');
+  }
+}
+
+
+/**
+ * Actualiza la contraseña de un usuario (socio o empleado).
+ * @param formData Objeto FormData con 'currentPassword', 'newPassword', 'confirmNewPassword'.
+ * @returns Un objeto con `success: boolean` y un `message: string`.
+ */
+export async function updatePassword(formData: FormData) {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.user || !session.user.email) {
+    return { success: false, message: "No está autenticado para realizar esta acción." };
+  }
+
+  const currentPassword = formData.get('currentPassword') as string;
+  const newPassword = formData.get('newPassword') as string;
+  const confirmNewPassword = formData.get('confirmNewPassword') as string;
+
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    return { success: false, message: "Todos los campos son obligatorios." };
+  }
+  if (newPassword !== confirmNewPassword) {
+    return { success: false, message: "La nueva contraseña y su confirmación no coinciden." };
+  }
+  if (newPassword.length < 4) {
+    return { success: false, message: "La nueva contraseña debe tener al menos 4 caracteres." };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return { success: false, message: "Usuario no encontrado." };
+    }
+
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+      return { success: false, message: "La contraseña actual es incorrecta." };
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedNewPassword },
+    });
+
+    console.log(`Contraseña del usuario ${user.name} actualizada con éxito.`);
+    return { success: true, message: "Contraseña actualizada exitosamente." };
+
+  } catch (error: unknown) {
+    console.error('Error al actualizar la contraseña:', error);
+    return { success: false, message: "Ocurrió un error inesperado al actualizar la contraseña. Por favor, inténtalo de nuevo." };
   }
 }

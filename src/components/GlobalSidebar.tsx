@@ -47,6 +47,7 @@ export default function GlobalSidebar() {
       { label: 'Registro Clases', href: '/empleado/registro-clases' },
       { label: 'Clases Disponibles', href: '/empleado/clases-disponibles' },
       { label: 'Listado Asistentes', href: '/empleado/listado-asistentes' },
+      { label: 'Contraseña', href: '/empleado/contrasena' },
     ],
     socio: [
       { label: 'Inicio', href: '/socio' },
