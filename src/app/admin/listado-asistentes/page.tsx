@@ -17,6 +17,7 @@ interface ClaseSelect {
 
 interface Assistant {
     type: 'socio' | 'visitante';
+    id: number;
     name: string | null;
     email: string | null;
 }
@@ -128,6 +129,7 @@ export default function AdminAttendancePage() {
                         <thead>
                             <tr>
                                 <th>Tipo</th>
+                                <th>ID</th>
                                 <th>Nombre</th>
                                 <th>Correo</th>
                             </tr>
@@ -136,6 +138,7 @@ export default function AdminAttendancePage() {
                             {assistants.map((assistant, index) => (
                                 <tr key={index}>
                                     <td>{assistant.type}</td>
+                                    <td>{assistant.id}</td>
                                     <td>{assistant.name}</td>
                                     <td>{assistant.email}</td>
                                 </tr>
