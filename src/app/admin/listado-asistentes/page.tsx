@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { Form, Button, Card, Table, Spinner, Alert } from 'react-bootstrap';
-import { getClasses, getInscriptionsByClass } from '@/app/actions';
+// ✅ CORREGIDO: Importa getAttendeesByClass en lugar de getInscriptionsByClass
+import { getClasses, getAttendeesByClass } from '@/app/actions'; 
 import { formatDbDateTimeToLocal } from '@/utils/formatDate';
 import { useSidebar } from '@/lib/SidebarContext';
 
@@ -36,7 +37,6 @@ export default function AdminAttendancePage() {
             setLoadingClasses(true);
             setErrorClasses(null);
             try {
-                // ✅ CORREGIDO: Ahora se maneja la respuesta como un objeto
                 const result = await getClasses();
                 if (result.success) {
                     const processedClasses = result.classes.map((clase: any) => ({
@@ -73,18 +73,10 @@ export default function AdminAttendancePage() {
         setLoadingAssistants(true);
         setErrorAssistants(null);
         try {
-            // Asumiendo que getInscriptionsByClass también devuelve un objeto
-            const result = await getInscriptionsByClass(selectedClassId);
-            if (result.success) {
-                setAssistants(result.inscriptions.map((insc: any) => ({
-                    id_inscripcion: insc.id_inscripcion,
-                    id_usuario: insc.id_usuario,
-                    nombre_usuario: insc.user.name,
-                    metodo_pago: insc.metodo_pago,
-                })));
-            } else {
-                setErrorAssistants(result.message);
-            }
+            // ✅ CORREGIDO: Llama a la función correcta
+            const fetchedAttendees = await getAttendeesByClass(selectedClassId);
+            // ✅ ASUMIDO: getAttendeesByClass devuelve un array de asistentes directamente
+            setAssistants(fetchedAttendees);
         } catch (err: any) {
             console.error("Error al cargar asistentes:", err);
             setErrorAssistants(err.message || "No se pudieron cargar los asistentes.");
