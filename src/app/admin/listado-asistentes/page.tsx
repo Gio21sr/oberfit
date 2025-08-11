@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { Form, Table, Spinner, Alert } from 'react-bootstrap';
-import { getClasses, getAttendeesByClass } from '@/app/actions'; // Importa Server Actions
+import { getClasses, getAttendeesByClass } from '@/app/actions';
+import { formatDbDateTimeToLocal } from '@/utils/formatDate';
 
 interface ClaseSelect {
   id_clase: number;
@@ -32,15 +33,20 @@ export default function EmpleadoAttendeesListPage() {
       try {
         setLoadingClasses(true);
         setErrorClasses(null);
-        const fetchedClasses = await getClasses();
-        const processedClasses = fetchedClasses.map((clase: ClaseSelect )  => ({
-          id_clase: clase.id_clase,
-          nombre_clase: clase.nombre_clase,
-          fecha_hora: new Date(clase.fecha_hora),
-        }));
-        setClasses(processedClasses);
-        if (processedClasses.length > 0) {
-          setSelectedClassId(processedClasses[0].id_clase);
+        // ✅ CORREGIDO: Maneja la respuesta como un objeto
+        const result = await getClasses();
+        if (result.success) {
+          const processedClasses = result.classes.map((clase: ClaseSelect) => ({
+            id_clase: clase.id_clase,
+            nombre_clase: clase.nombre_clase,
+            fecha_hora: new Date(clase.fecha_hora),
+          }));
+          setClasses(processedClasses);
+          if (processedClasses.length > 0) {
+            setSelectedClassId(processedClasses[0].id_clase);
+          }
+        } else {
+          setErrorClasses(result.message);
         }
       } catch (err: any) {
         console.error("Error al cargar clases para selector del empleado:", err);
@@ -61,7 +67,7 @@ export default function EmpleadoAttendeesListPage() {
       try {
         setLoadingAttendees(true);
         setErrorAttendees(null);
-        // Aseguramos que selectedClassId no es null antes de llamar a la función
+        // ✅ Aseguramos que selectedClassId no es null antes de llamar a la función
         const fetchedAttendees = await getAttendeesByClass(selectedClassId as number);
         setAttendees(fetchedAttendees);
       } catch (err: any) {
@@ -163,4 +169,4 @@ export default function EmpleadoAttendeesListPage() {
       )}
     </div>
   );
-} 
+}
