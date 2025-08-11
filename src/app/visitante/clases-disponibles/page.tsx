@@ -26,12 +26,18 @@ export default function VisitanteClassesPage() {
     try {
       setLoading(true);
       setError(null);
-      const fetchedClasses = await getClasses();
-      const processedClasses = fetchedClasses.map((clase:Clase ) => ({
-        ...clase,
-        fecha_hora: new Date(clase.fecha_hora),
-      }));
-      setClasses(processedClasses.filter((clase:Clase) => clase.cupo > 0));
+
+      const result = await getClasses();
+      if (result.success) {
+        const processedClasses = (result.classes ?? []).map((clase: Clase) => ({
+          ...clase,
+          fecha_hora: new Date(clase.fecha_hora),
+        }));
+        setClasses(processedClasses.filter((clase: Clase) => clase.cupo > 0));
+      } else {
+        setError(result.message);
+      }
+
     } catch (err: any) {
       console.error("Error al cargar clases para visitante:", err);
       setError(err.message || "No se pudieron cargar las clases.");
@@ -73,11 +79,25 @@ export default function VisitanteClassesPage() {
         <>
           <Table striped bordered hover responsive className="my-4">
             <thead>
-              <tr><th>ID</th><th>Nombre</th><th>Descripción</th><th>Fecha y Hora</th><th>Cupo Disp.</th><th>Cupo Máx.</th></tr>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Fecha y Hora</th>
+                <th>Cupo Disp.</th>
+                <th>Cupo Máx.</th>
+              </tr>
             </thead>
             <tbody>
               {classes.map((clase) => (
-                <tr key={clase.id_clase}><td>{clase.id_clase}</td><td>{clase.nombre_clase}</td><td>{clase.descripcion}</td><td>{formatDbDateTimeToLocal(clase.fecha_hora)}</td><td>{clase.cupo}</td><td>{clase.capacidad_maxima !== null ? clase.capacidad_maxima : 'N/A'}</td></tr>
+                <tr key={clase.id_clase}>
+                  <td>{clase.id_clase}</td>
+                  <td>{clase.nombre_clase}</td>
+                  <td>{clase.descripcion}</td>
+                  <td>{formatDbDateTimeToLocal(clase.fecha_hora)}</td>
+                  <td>{clase.cupo}</td>
+                  <td>{clase.capacidad_maxima !== null ? clase.capacidad_maxima : 'N/A'}</td>
+                </tr>
               ))}
             </tbody>
           </Table>
