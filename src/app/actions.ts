@@ -946,8 +946,8 @@ export async function updatePassword(formData: FormData) {
   if (newPassword !== confirmNewPassword) {
     return { success: false, message: "La nueva contraseña y su confirmación no coinciden." };
   }
-  if (newPassword.length < 4) {
-    return { success: false, message: "La nueva contraseña debe tener al menos 4 caracteres." };
+  if (newPassword.length < 8) {
+    return { success: false, message: "La nueva contraseña debe tener al menos 8 caracteres." };
   }
 
   try {
@@ -957,6 +957,11 @@ export async function updatePassword(formData: FormData) {
 
     if (!user) {
       return { success: false, message: "Usuario no encontrado." };
+    }
+
+    // 💡 SOLUCIÓN: Agregamos una verificación para asegurar que user.password no es null.
+    if (!user.password) {
+      return { success: false, message: "No se encontró una contraseña actual para este usuario." };
     }
 
     const passwordMatch = await bcrypt.compare(currentPassword, user.password);

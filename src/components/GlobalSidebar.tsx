@@ -53,6 +53,7 @@ export default function GlobalSidebar() {
       { label: 'Inicio', href: '/socio' },
       { label: 'Clases Disponibles', href: '/socio/clases-disponibles' },
       { label: 'Mis Clases', href: '/socio/mis-clases' },
+      { label: 'Contraseña', href: '/socio/contrasena' },
     ],
     visitante: [
       { label: 'Inicio', href: '/visitante' },
