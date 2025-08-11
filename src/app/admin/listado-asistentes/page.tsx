@@ -73,7 +73,12 @@ export default function AdminAttendancePage() {
         setErrorAssistants(null);
         try {
             const fetchedAttendees = await getAttendeesByClass(selectedClassId);
-            setAssistants(fetchedAttendees);
+            setAssistants(
+                fetchedAttendees.map((a: any) => ({
+                    ...a,
+                    type: a.type as 'socio' | 'visitante'
+                }))
+            );
         } catch (err: any) {
             console.error("Error al cargar asistentes:", err);
             setErrorAssistants(err.message || "No se pudieron cargar los asistentes.");
