@@ -274,25 +274,27 @@ export async function registerClass(formData: FormData) {
 
 
 /**
+ * 💡 CORREGIDO: Ahora devuelve un objeto con las propiedades `success` y `classes`.
  * Obtiene todas las clases de la base de datos.
- * @returns Un array de objetos de clase.
- * @throws Error si hay un problema al obtener las clases.
+ * @returns Un objeto que indica el éxito o fracaso y un array de clases.
  */
 export async function getClasses() {
   try {
     const classes = await prisma.clase.findMany({
-        orderBy: {
-            fecha_hora: 'asc',
-        }
+      orderBy: {
+        fecha_hora: 'asc',
+      }
     });
     console.log('Clases obtenidas de DB:', classes);
-    return classes;
+    // ✅ Devuelve un objeto con la propiedad 'success' y los datos
+    return { success: true, classes, message: 'Clases cargadas correctamente.' };
   } catch (error: unknown) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
     console.error('Error al obtener clases de DB:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al obtener las clases. Inténtalo de nuevo.');
+    // ✅ Devuelve un objeto de error que el frontend puede manejar
+    return { success: false, message: 'Error al obtener las clases. Inténtalo de nuevo.' };
   }
 }
 
