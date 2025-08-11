@@ -601,9 +601,19 @@ export async function deleteUserByAdmin(formData: FormData) {
   }
 
   try {
-    const deletedUser = await prisma.user.delete({
-      where: { id: userId },
+    // Usar una transacción para asegurar la integridad de los datos
+    const deletedUser = await prisma.$transaction(async (tx) => {
+      // 1. Primero eliminar todas las inscripciones del usuario (socio)
+      await tx.inscripcion.deleteMany({
+        where: { id_usuario: userId },
+      });
+
+      // 2. Luego eliminar el usuario
+      return await tx.user.delete({
+        where: { id: userId },
+      });
     });
+
     console.log(`Usuario (${roleToDelete}) eliminado de DB (unified):`, deletedUser);
     return deletedUser;
   } catch (error: unknown) {
@@ -611,10 +621,7 @@ export async function deleteUserByAdmin(formData: FormData) {
       throw error;
     }
     if (isErrorWithCode(error) && error.code === 'P2025') {
-        throw new Error('El usuario a eliminar no existe.');
-    }
-    if (isErrorWithCode(error) && error.code === 'P2003') {
-        throw new Error('No se puede eliminar el usuario porque tiene registros asociados (ej. inscripciones).');
+      throw new Error('El usuario a eliminar no existe.');
     }
     console.error('Error al eliminar usuario por Admin:', error);
     throw new Error(isErrorWithMessage(error) ? error.message : 'Error al eliminar el usuario. Inténtalo de nuevo.');
@@ -989,5 +996,158 @@ export async function updatePassword(formData: FormData) {
   } catch (error: unknown) {
     console.error('Error al actualizar la contraseña:', error);
     return { success: false, message: "Ocurrió un error inesperado al actualizar la contraseña. Por favor, inténtalo de nuevo." };
+  }
+}
+
+/**
+ * Obtiene un usuario completo por su ID para edición
+ * @param userId ID del usuario a obtener
+ * @returns Un objeto con los datos del usuario o un objeto de error
+ */
+export async function getFullUserById(userId: number) {
+  if (isNaN(userId)) {
+    return { success: false, message: "ID de usuario inválido." };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return { success: false, message: "Usuario no encontrado." };
+    }
+
+    return { 
+      success: true, 
+      user: {
+        id: user.id,
+        username: user.name,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        es_socio: user.es_socio,
+        clases_restantes: user.clases_restantes
+      }
+    };
+  } catch (error: unknown) {
+    if (isErrorWithRedirect(error)) {
+      throw error;
+    }
+    console.error('Error al obtener usuario:', error);
+    return { 
+      success: false, 
+      message: isErrorWithMessage(error) ? error.message : 'Error al obtener los datos del usuario.' 
+    };
+  }
+}
+
+/**
+ * Actualiza un usuario existente en la base de datos
+ * @param formData Objeto FormData con los datos a actualizar
+ * @returns Un objeto con éxito/error y mensaje
+ */
+export async function updateUser(formData: FormData) {
+  const id = parseInt(formData.get('id') as string);
+  const username = formData.get('username') as string;
+  const fullName = formData.get('fullName') as string;
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const confirmPassword = formData.get('confirmPassword') as string;
+  const role = formData.get('role') as 'empleado' | 'socio';
+  const clasesRestantes = formData.get('clases_restantes') as string | null;
+
+  // Validaciones básicas
+  if (isNaN(id)) {
+    return { success: false, message: "ID de usuario inválido." };
+  }
+  if (!username || !fullName || !email || !role) {
+    return { success: false, message: "Todos los campos son requeridos excepto la contraseña." };
+  }
+  if (password && password !== confirmPassword) {
+    return { success: false, message: "Las contraseñas no coinciden." };
+  }
+  if (password && password.length < 8) {
+    return { success: false, message: "La contraseña debe tener al menos 8 caracteres." };
+  }
+
+  try {
+    const updateData: Prisma.UserUpdateInput = {
+      name: username,
+      fullName: fullName,
+      email: email,
+      role: role,
+      es_socio: role === 'socio',
+    };
+
+    // Solo actualizar contraseña si se proporcionó
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+
+    // Manejar clases restantes para socios
+    if (role === 'socio') {
+      updateData.clases_restantes = clasesRestantes ? parseInt(clasesRestantes) : 0;
+      updateData.last_reset_month = new Date();
+    } else {
+      updateData.clases_restantes = null;
+      updateData.last_reset_month = null;
+    }
+
+    // Verificar unicidad de email y username
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        AND: [
+          { id: { not: id } }, // Excluir el usuario actual
+          { OR: [
+            { name: username },
+            { email: email }
+          ]}
+        ]
+      }
+    });
+
+    if (existingUser) {
+      if (existingUser.name === username) {
+        return { success: false, message: 'El nombre de usuario ya está en uso.' };
+      }
+      if (existingUser.email === email) {
+        return { success: false, message: 'El correo electrónico ya está en uso.' };
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
+
+    console.log('Usuario actualizado:', updatedUser);
+    return { 
+      success: true, 
+      message: `Usuario ${updatedUser.name} actualizado correctamente.`,
+      user: updatedUser
+    };
+  } catch (error: unknown) {
+    if (isErrorWithRedirect(error)) {
+      throw error;
+    }
+    if (isErrorWithCode(error)) {
+      if (error.code === 'P2025') {
+        return { success: false, message: 'El usuario a actualizar no existe.' };
+      }
+      if (error.code === 'P2002') {
+        const target = error.meta?.target;
+        return { 
+          success: false, 
+          message: `Error de duplicado: ${Array.isArray(target) ? target.join(', ') : target}` 
+        };
+      }
+    }
+    console.error('Error al actualizar usuario:', error);
+    return { 
+      success: false, 
+      message: isErrorWithMessage(error) ? error.message : 'Error desconocido al actualizar el usuario.' 
+    };
   }
 }

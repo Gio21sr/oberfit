@@ -28,6 +28,7 @@ export default function AdminAttendancePage() {
     const [assistants, setAssistants] = useState<Assistant[]>([]);
     const [loadingAssistants, setLoadingAssistants] = useState(false);
     const [errorAssistants, setErrorAssistants] = useState<string | null>(null);
+    const [hasFetchedAssistants, setHasFetchedAssistants] = useState(false);
     const { setCurrentRoleMenu } = useSidebar();
 
     useEffect(() => {
@@ -61,6 +62,7 @@ export default function AdminAttendancePage() {
         const id = parseInt(event.target.value);
         setSelectedClassId(isNaN(id) ? null : id);
         setAssistants([]);
+        setHasFetchedAssistants(false);
     };
 
     const fetchAssistants = async () => {
@@ -79,6 +81,7 @@ export default function AdminAttendancePage() {
                     type: a.type as 'socio' | 'visitante'
                 }))
             );
+            setHasFetchedAssistants(true);
         } catch (err: any) {
             console.error("Error al cargar asistentes:", err);
             setErrorAssistants(err.message || "No se pudieron cargar los asistentes.");
@@ -120,6 +123,12 @@ export default function AdminAttendancePage() {
             {errorAssistants && (
                 <Alert variant="danger" className="my-4">
                     {errorAssistants}
+                </Alert>
+            )}
+
+            {hasFetchedAssistants && assistants.length === 0 && (
+                <Alert variant="info" className="my-4">
+                    No hay asistentes registrados para esta clase.
                 </Alert>
             )}
 
