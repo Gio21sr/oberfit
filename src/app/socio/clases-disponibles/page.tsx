@@ -129,7 +129,6 @@ export default function SocioClassesPage() {
         <Table striped bordered hover responsive className="my-4">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Nombre</th>
               <th>Descripción</th>
               <th>Fecha y Hora</th>
@@ -141,7 +140,6 @@ export default function SocioClassesPage() {
           <tbody>
             {classes.map((clase) => (
               <tr key={clase.id_clase}>
-                <td>{clase.id_clase}</td>
                 <td>{clase.nombre_clase}</td>
                 <td>{clase.descripcion}</td>
                 <td>{formatDbDateTimeToLocal(clase.fecha_hora)}</td>

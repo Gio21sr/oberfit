@@ -13,10 +13,11 @@ interface ClaseSelect {
     fecha_hora: Date;
 }
 
+// ✅ Interfaz actualizada para mostrar los nuevos campos y eliminar el 'id'
 interface Assistant {
     type: 'socio' | 'visitante';
-    id: number;
-    name: string | null;
+    nombre_completo: string | null;
+    nombre_usuario: string | null;
     email: string | null;
 }
 
@@ -76,10 +77,16 @@ export default function AdminAttendancePage() {
         try {
             const fetchedAttendees = await getAttendeesByClass(selectedClassId);
             setAssistants(
-                fetchedAttendees.map((a: any) => ({
-                    ...a,
-                    type: a.type as 'socio' | 'visitante'
-                }))
+                fetchedAttendees.map((a: any) => {
+                    const nombreCompleto = a.name || 'N/A';
+                    const nombreUsuario = a.name?.split(' ')[0] || 'N/A';
+                    return {
+                        type: a.type as 'socio' | 'visitante',
+                        nombre_completo: nombreCompleto,
+                        nombre_usuario: nombreUsuario,
+                        email: a.email || null,
+                    };
+                })
             );
             setHasFetchedAssistants(true);
         } catch (err: any) {
@@ -139,8 +146,8 @@ export default function AdminAttendancePage() {
                         <thead>
                             <tr>
                                 <th>Tipo</th>
-                                <th>ID</th>
-                                <th>Nombre</th>
+                                <th>Nombre Completo</th>
+                                <th>Nombre de Usuario</th>
                                 <th>Correo</th>
                             </tr>
                         </thead>
@@ -148,8 +155,8 @@ export default function AdminAttendancePage() {
                             {assistants.map((assistant, index) => (
                                 <tr key={index}>
                                     <td>{assistant.type}</td>
-                                    <td>{assistant.id}</td>
-                                    <td>{assistant.name}</td>
+                                    <td>{assistant.nombre_completo}</td>
+                                    <td>{assistant.nombre_usuario}</td>
                                     <td>{assistant.email}</td>
                                 </tr>
                             ))}
