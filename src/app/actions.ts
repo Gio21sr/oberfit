@@ -68,6 +68,27 @@ interface VisitorInscriptionData {
   } | null;
 }
 
+interface FullUserData {
+  id: number;
+  username: string | null;
+  fullName: string | null;
+  email: string | null;
+  role: string | null;
+  es_socio: boolean | null;
+  clases_restantes: number | null;
+}
+
+interface UserFormData {
+  id: number;
+  username: string;
+  fullName: string;
+  email: string;
+  password?: string;
+  confirmPassword?: string;
+  role: 'empleado' | 'socio';
+  clases_restantes?: string;
+}
+
 interface UserData {
   id_usuario: number;
   nom_usuario: string | null; // Puede ser null
@@ -469,17 +490,17 @@ export async function deleteClass(formData: FormData) {
   }
 }
 
-
-
-
-
 /**
  * Registra un nuevo usuario (Empleado o Socio) en la tabla 'usuarios' (modelo 'User').
  * Esta función es llamada por el Administrador.
- * @param formData Objeto FormData con 'username', 'email', 'password', 'confirmPassword', 'role'.
- * @returns Un objeto con éxito o lanza un Error.
+ * @param formData Objeto FormData con 'username', 'fullName', 'email', 'password', 'confirmPassword', 'role'.
+ * @returns Un objeto con {success: boolean, message: string, user?: User}
  */
-export async function registerUserByAdmin(formData: FormData) {
+export async function registerUserByAdmin(formData: FormData): Promise<{
+  success: boolean;
+  message: string;
+  user?: User;
+}> {
   const username = formData.get('username') as string;
   const fullName = formData.get('fullName') as string;
   const email = formData.get('email') as string;
@@ -487,16 +508,21 @@ export async function registerUserByAdmin(formData: FormData) {
   const confirmPassword = formData.get('confirmPassword') as string;
   const role = formData.get('role') as 'empleado' | 'socio';
 
-  if (!username || !email || !password || !confirmPassword || !role) {
-    throw new Error("Todos los campos son requeridos.");
+  // Validaciones básicas
+  if (!username || !fullName || !email || !password || !confirmPassword || !role) {
+    return { success: false, message: "Todos los campos son requeridos." };
   }
   if (password !== confirmPassword) {
-    throw new Error("Las contraseñas no coinciden.");
+    return { success: false, message: "Las contraseñas no coinciden." };
+  }
+  if (password.length < 8) {
+    return { success: false, message: "La contraseña debe tener al menos 8 caracteres." };
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
   try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Verificar si el usuario o email ya existen
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
@@ -505,15 +531,17 @@ export async function registerUserByAdmin(formData: FormData) {
         ]
       }
     });
+
     if (existingUser) {
       if (existingUser.name === username) {
-        throw new Error('El nombre de usuario ya existe.');
+        return { success: false, message: 'El nombre de usuario ya existe.' };
       }
       if (existingUser.email === email) {
-        throw new Error('El correo electrónico ya existe.');
+        return { success: false, message: 'El correo electrónico ya existe.' };
       }
     }
 
+    // Crear el nuevo usuario
     const newUser = await prisma.user.create({
       data: {
         name: username,
@@ -526,18 +554,39 @@ export async function registerUserByAdmin(formData: FormData) {
         last_reset_month: role === 'socio' ? new Date() : null,
       },
     });
-    console.log(`Nuevo usuario '${username}' (${role}) creado en la tabla 'usuarios':`, newUser);
+
+    console.log(`Nuevo usuario '${username}' (${role}) creado:`, newUser);
+    return { 
+      success: true, 
+      message: `Usuario ${newUser.name} registrado correctamente como ${role}.`,
+      user: newUser
+    };
 
   } catch (error: unknown) {
     if (isErrorWithRedirect(error)) {
       throw error;
     }
-    if (isErrorWithCode(error) && error.code === 'P2002') {
-        const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
-        throw new Error(`Ya existe un usuario con este ${target}.`);
+    
+    if (isErrorWithCode(error)) {
+      if (error.code === 'P2002') {
+        const target = error.meta?.target;
+        if (Array.isArray(target)) {
+          if (target.includes('email')) {
+            return { success: false, message: 'El correo electrónico ya está registrado.' };
+          }
+          if (target.includes('name')) {
+            return { success: false, message: 'El nombre de usuario ya está registrado.' };
+          }
+        }
+        return { success: false, message: 'Error de duplicado en la base de datos.' };
+      }
     }
+
     console.error('Error al registrar usuario por Admin:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al registrar el usuario. Inténtalo de nuevo.');
+    return { 
+      success: false, 
+      message: isErrorWithMessage(error) ? error.message : 'Error al registrar el usuario. Inténtalo de nuevo.' 
+    };
   }
 }
 
@@ -937,78 +986,10 @@ export async function getAttendeesByClass(classId: number) {
   }
 }
 
-
-/**
- * Actualiza la contraseña de un usuario (socio o empleado).
- * @param formData Objeto FormData con 'currentPassword', 'newPassword', 'confirmNewPassword'.
- * @returns Un objeto con `success: boolean` y un `message: string`.
- */
-export async function updatePassword(formData: FormData) {
-  const session = await getServerSession(authOptions);
-
-  if (!session || !session.user || !session.user.email) {
-    return { success: false, message: "No está autenticado para realizar esta acción." };
-  }
-
-  const currentPassword = formData.get('currentPassword') as string;
-  const newPassword = formData.get('newPassword') as string;
-  const confirmNewPassword = formData.get('confirmNewPassword') as string;
-
-  if (!currentPassword || !newPassword || !confirmNewPassword) {
-    return { success: false, message: "Todos los campos son obligatorios." };
-  }
-  if (newPassword !== confirmNewPassword) {
-    return { success: false, message: "La nueva contraseña y su confirmación no coinciden." };
-  }
-  if (newPassword.length < 8) {
-    return { success: false, message: "La nueva contraseña debe tener al menos 8 caracteres." };
-  }
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return { success: false, message: "Usuario no encontrado." };
-    }
-
-    // 💡 SOLUCIÓN: Agregamos una verificación para asegurar que user.password no es null.
-    if (!user.password) {
-      return { success: false, message: "No se encontró una contraseña actual para este usuario." };
-    }
-
-    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!passwordMatch) {
-      return { success: false, message: "La contraseña actual es incorrecta." };
-    }
-
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedNewPassword },
-    });
-
-    console.log(`Contraseña del usuario ${user.name} actualizada con éxito.`);
-    return { success: true, message: "Contraseña actualizada exitosamente." };
-
-  } catch (error: unknown) {
-    console.error('Error al actualizar la contraseña:', error);
-    return { success: false, message: "Ocurrió un error inesperado al actualizar la contraseña. Por favor, inténtalo de nuevo." };
-  }
-}
-
 /**
  * Obtiene un usuario completo por su ID para edición
- * @param userId ID del usuario a obtener
- * @returns Un objeto con los datos del usuario o un objeto de error
  */
-export async function getFullUserById(userId: number) {
-  if (isNaN(userId)) {
-    return { success: false, message: "ID de usuario inválido." };
-  }
-
+export async function getFullUserById(userId: number): Promise<{success: boolean; message?: string; user?: FullUserData}> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -1019,21 +1000,18 @@ export async function getFullUserById(userId: number) {
     }
 
     return { 
-      success: true, 
+      success: true,
       user: {
         id: user.id,
         username: user.name,
         fullName: user.fullName,
         email: user.email,
-        role: user.role,
+        role: user.role as 'empleado' | 'socio',
         es_socio: user.es_socio,
         clases_restantes: user.clases_restantes
       }
     };
   } catch (error: unknown) {
-    if (isErrorWithRedirect(error)) {
-      throw error;
-    }
     console.error('Error al obtener usuario:', error);
     return { 
       success: false, 
@@ -1044,10 +1022,8 @@ export async function getFullUserById(userId: number) {
 
 /**
  * Actualiza un usuario existente en la base de datos
- * @param formData Objeto FormData con los datos a actualizar
- * @returns Un objeto con éxito/error y mensaje
  */
-export async function updateUser(formData: FormData) {
+export async function updateUser(formData: FormData): Promise<{success: boolean; message: string; user?: User}> {
   const id = parseInt(formData.get('id') as string);
   const username = formData.get('username') as string;
   const fullName = formData.get('fullName') as string;
@@ -1080,13 +1056,10 @@ export async function updateUser(formData: FormData) {
       es_socio: role === 'socio',
     };
 
-    // Solo actualizar contraseña si se proporcionó
     if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateData.password = hashedPassword;
+      updateData.password = await bcrypt.hash(password, 10);
     }
 
-    // Manejar clases restantes para socios
     if (role === 'socio') {
       updateData.clases_restantes = clasesRestantes ? parseInt(clasesRestantes) : 0;
       updateData.last_reset_month = new Date();
@@ -1099,11 +1072,8 @@ export async function updateUser(formData: FormData) {
     const existingUser = await prisma.user.findFirst({
       where: {
         AND: [
-          { id: { not: id } }, // Excluir el usuario actual
-          { OR: [
-            { name: username },
-            { email: email }
-          ]}
+          { id: { not: id } },
+          { OR: [{ name: username }, { email: email }] }
         ]
       }
     });
@@ -1122,26 +1092,18 @@ export async function updateUser(formData: FormData) {
       data: updateData,
     });
 
-    console.log('Usuario actualizado:', updatedUser);
     return { 
       success: true, 
       message: `Usuario ${updatedUser.name} actualizado correctamente.`,
       user: updatedUser
     };
   } catch (error: unknown) {
-    if (isErrorWithRedirect(error)) {
-      throw error;
-    }
     if (isErrorWithCode(error)) {
       if (error.code === 'P2025') {
         return { success: false, message: 'El usuario a actualizar no existe.' };
       }
       if (error.code === 'P2002') {
-        const target = error.meta?.target;
-        return { 
-          success: false, 
-          message: `Error de duplicado: ${Array.isArray(target) ? target.join(', ') : target}` 
-        };
+        return { success: false, message: 'Error de duplicado en la base de datos.' };
       }
     }
     console.error('Error al actualizar usuario:', error);
