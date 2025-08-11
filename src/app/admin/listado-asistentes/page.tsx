@@ -3,22 +3,22 @@
 
 import { useState, useEffect } from 'react';
 import { Form, Button, Card, Table, Spinner, Alert } from 'react-bootstrap';
-// ✅ CORREGIDO: Importa getAttendeesByClass en lugar de getInscriptionsByClass
+// Importación correcta de las funciones
 import { getClasses, getAttendeesByClass } from '@/app/actions'; 
 import { formatDbDateTimeToLocal } from '@/utils/formatDate';
 import { useSidebar } from '@/lib/SidebarContext';
 
+// Define las interfaces para tipado más seguro
 interface ClaseSelect {
     id_clase: number;
     nombre_clase: string;
     fecha_hora: Date;
 }
 
-interface Inscripcion {
-    id_inscripcion: number;
-    id_usuario: number;
-    nombre_usuario: string;
-    metodo_pago: string;
+interface Assistant {
+    type: 'socio' | 'visitante';
+    name: string | null;
+    email: string | null;
 }
 
 export default function AdminAttendancePage() {
@@ -26,7 +26,7 @@ export default function AdminAttendancePage() {
     const [loadingClasses, setLoadingClasses] = useState(true);
     const [errorClasses, setErrorClasses] = useState<string | null>(null);
     const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-    const [assistants, setAssistants] = useState<Inscripcion[]>([]);
+    const [assistants, setAssistants] = useState<Assistant[]>([]);
     const [loadingAssistants, setLoadingAssistants] = useState(false);
     const [errorAssistants, setErrorAssistants] = useState<string | null>(null);
     const { setCurrentRoleMenu } = useSidebar();
@@ -37,6 +37,7 @@ export default function AdminAttendancePage() {
             setLoadingClasses(true);
             setErrorClasses(null);
             try {
+                // ✅ CORREGIDO: Maneja la respuesta como un objeto con propiedad 'success'
                 const result = await getClasses();
                 if (result.success) {
                     const processedClasses = result.classes.map((clase: any) => ({
@@ -73,9 +74,8 @@ export default function AdminAttendancePage() {
         setLoadingAssistants(true);
         setErrorAssistants(null);
         try {
-            // ✅ CORREGIDO: Llama a la función correcta
+            // ✅ CORREGIDO: Llama a la función getAttendeesByClass, que devuelve un array
             const fetchedAttendees = await getAttendeesByClass(selectedClassId);
-            // ✅ ASUMIDO: getAttendeesByClass devuelve un array de asistentes directamente
             setAssistants(fetchedAttendees);
         } catch (err: any) {
             console.error("Error al cargar asistentes:", err);
@@ -127,19 +127,17 @@ export default function AdminAttendancePage() {
                     <Table striped bordered hover responsive>
                         <thead>
                             <tr>
-                                <th>ID Inscripción</th>
-                                <th>ID Usuario</th>
-                                <th>Nombre del Socio</th>
-                                <th>Método de Pago</th>
+                                <th>Tipo</th>
+                                <th>Nombre</th>
+                                <th>Correo</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {assistants.map((assistant) => (
-                                <tr key={assistant.id_inscripcion}>
-                                    <td>{assistant.id_inscripcion}</td>
-                                    <td>{assistant.id_usuario}</td>
-                                    <td>{assistant.nombre_usuario}</td>
-                                    <td>{assistant.metodo_pago}</td>
+                            {assistants.map((assistant, index) => (
+                                <tr key={index}>
+                                    <td>{assistant.type}</td>
+                                    <td>{assistant.name}</td>
+                                    <td>{assistant.email}</td>
                                 </tr>
                             ))}
                         </tbody>
