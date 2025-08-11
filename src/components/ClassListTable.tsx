@@ -36,11 +36,16 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
       setLoading(true);
       setError(null);
       const fetchedClasses = await getClasses();
-      const processedClasses = fetchedClasses.map((clase: Clase) => ({
-        ...clase,
-        fecha_hora: new Date(clase.fecha_hora),
-      }));
-      setClasses(processedClasses);
+      
+      if (fetchedClasses.success && fetchedClasses.classes) {
+        const processedClasses = fetchedClasses.classes.map((clase) => ({
+          ...clase,
+          fecha_hora: new Date(clase.fecha_hora),
+        }));
+        setClasses(processedClasses);
+      } else {
+        throw new Error(fetchedClasses.message || "No se pudieron cargar las clases");
+      }
     } catch (err: any) {
       console.error("Error al cargar clases:", err);
       setError(err.message || "No se pudieron cargar las clases.");
@@ -89,9 +94,6 @@ export default function ClassListTable({ showActions = false }: ClassListTablePr
 
   const handleEditClick = (clase: Clase) => {
     setCurrentClass(clase);
-
-    // ✅ SOLUCIÓN: Convertir la fecha UTC a la hora local de CDMX de forma explícita.
-    // Esto evita que el navegador interprete incorrectamente la hora.
     const dateObj = new Date(clase.fecha_hora);
     const cdmxOffset = -6 * 60; // Desfase de CDMX en minutos
     const browserOffset = dateObj.getTimezoneOffset();
