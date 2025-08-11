@@ -490,6 +490,7 @@ export async function deleteClass(formData: FormData) {
   }
 }
 
+
 /**
  * Registra un nuevo usuario (Empleado o Socio) en la tabla 'usuarios' (modelo 'User').
  * Esta función es llamada por el Administrador.
@@ -589,7 +590,6 @@ export async function registerUserByAdmin(formData: FormData): Promise<{
     };
   }
 }
-
 /**
  * Obtiene usuarios de la base de datos por su rol (Empleados o Socios) desde la tabla 'usuarios'.
  * @returns Un objeto que contiene arrays de empleados y socios.
