@@ -74,9 +74,10 @@ interface UserData {
 
 /**
  * Registra un nuevo usuario (socio) en la base de datos `usuarios` (modelo `User`).
- * Esta función es llamada desde el formulario de Login/Registro para socios.
  * @param formData Objeto FormData con 'username', 'fullName', 'email', 'password', y 'confirmPassword'.
+ * @returns Un objeto con `success: boolean` y un `message: string`
  */
+
 export async function registerUser(formData: FormData) {
   const username = formData.get('username') as string;
   const fullName = formData.get('fullName') as string;
@@ -84,11 +85,12 @@ export async function registerUser(formData: FormData) {
   const password = formData.get('password') as string;
   const confirmPassword = formData.get('confirmPassword') as string;
 
+  // Modificación: Retorna un objeto en lugar de lanzar un error para validaciones iniciales.
   if (!username || !fullName || !email || !password || !confirmPassword) {
-    throw new Error("Todos los campos son requeridos.");
+    return { success: false, message: "Todos los campos son requeridos." };
   }
   if (password !== confirmPassword) {
-    throw new Error("Las contraseñas no coinciden.");
+    return { success: false, message: "Las contraseñas no coinciden." };
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -105,10 +107,12 @@ export async function registerUser(formData: FormData) {
 
     if (existingUser) {
       if (existingUser.name === username) {
-        throw new Error('El nombre de usuario ya existe.');
+        // Modificación: Retorna un objeto en lugar de lanzar un error.
+        return { success: false, message: 'El nombre de usuario ya existe.' };
       }
       if (existingUser.email === email) {
-        throw new Error('El correo electrónico ya existe.');
+        // Modificación: Retorna un objeto en lugar de lanzar un error.
+        return { success: false, message: 'El correo electrónico ya existe.' };
       }
     }
 
@@ -128,16 +132,22 @@ export async function registerUser(formData: FormData) {
     console.log('Socio registrado en DB (tabla usuarios/User):', newUser);
 
     return { success: true, message: `¡Bienvenido, ${newUser.fullName}! Tu cuenta ha sido creada.` };
+
   } catch (error: unknown) {
+    // Si es un error de redirección, lo lanzamos.
     if (isErrorWithRedirect(error)) {
       throw error;
     }
+    
+    // Modificación: Retorna un objeto en lugar de lanzar un error para errores de Prisma.
     if (isErrorWithCode(error) && error.code === 'P2002') {
       const target = (error.meta?.target) ? (Array.isArray(error.meta.target) ? error.meta.target.join(', ') : error.meta.target) : 'campo desconocido';
-      throw new Error(`Ya existe un usuario con este ${target}.`);
+      return { success: false, message: `Ya existe un usuario con este ${target}.` };
     }
+    
+    // Modificación: Retorna un objeto para cualquier otro error.
     console.error('Error al registrar socio:', error);
-    throw new Error(isErrorWithMessage(error) ? error.message : 'Error al registrar el socio. Inténtalo de nuevo.');
+    return { success: false, message: isErrorWithMessage(error) ? error.message : 'Error al registrar el socio. Inténtalo de nuevo.' };
   }
 }
 
